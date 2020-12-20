@@ -27,9 +27,10 @@
 (defn wrap-default-index [handler]
   (fn [request]
     (if (index-route? (:uri request))
-      (let [response (handler (assoc request :uri "/index.html"))]
-        (assoc-in response [:headers "Content-Type"] "text/html"))
+      (handler (assoc request :uri "/index.html"))
       (handler request))))
+
+
 
 ;; Handlers
 
@@ -87,8 +88,8 @@
 (def app
   (-> #'app-raw
       (resource/wrap-resource "public")
-      wrap-default-index
       content-type/wrap-content-type
+      wrap-default-index
       (logger/wrap-log-request-params {:log-exceptions? false
                                        :transform-fn #(assoc % :level :info)})
       wrap-params
