@@ -1,0 +1,15 @@
+{:jetty {:port #profile {:prod #env PORT
+                         :dev #or [#env PORT 3000]}
+         :join? #profile {:prod true
+                          :dev false}}
+ :db {:host #profile {:prod #env DB_HOST
+                      :dev "localhost"}
+      :port #profile {:prod #long #env DB_PORT
+                      :dev 5432}
+      :dbname "patients"
+      :user #profile {:prod #env DB_USER
+                      :dev "default"}
+      :password #profile {:prod #env DB_PASSWORD
+                          :dev "123"}}
+ :db-pool {:min-pool-size 10
+           :max-pool-size 10}}
