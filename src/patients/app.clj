@@ -10,7 +10,7 @@
             [ring.logger :as logger]
             [compojure.core :refer [GET POST PUT DELETE defroutes] :as compojure]
             [compojure.coercions :refer [as-int]]
-            [clojure.pprint :as pp]))
+            [patients.config :refer [config]]))
 
 ;; Middlewares
 
@@ -30,7 +30,14 @@
       (handler (assoc request :uri "/index.html"))
       (handler request))))
 
-
+(defn wrap-exception [handler err-prod-response]
+  (if (= (:env config) :dev)
+    (stacktrace/wrap-stacktrace handler {:color? true})
+    (fn [request]
+      (try
+        (handler request)
+        (catch Throwable e
+          err-prod-response)))))
 
 ;; Handlers
 
@@ -80,13 +87,16 @@
 
 (defroutes app*
   (-> (compojure/context "/api" [] app-api)
-      (json/wrap-json-response)
-      (json/wrap-json-body {:keywords? true})))
+      (wrap-exception {:status 500
+                       :headers {"Content-Type" "application/json"}
+                       :body {:error "server_error"}})
+      (json/wrap-json-body {:keywords? true})
+      json/wrap-json-response))
 
 ;; App
 
 (def app
-  (-> #'app-raw
+  (-> #'app*
       (resource/wrap-resource "public")
       content-type/wrap-content-type
       wrap-default-index
@@ -94,4 +104,6 @@
                                        :transform-fn #(assoc % :level :info)})
       wrap-params
       gzip/wrap-gzip
-      (stacktrace/wrap-stacktrace {:color? true})))
+      (wrap-exception {:status 500
+                       :headers {"Content-Type" "text/html"}
+                       :body "Inner error"})))

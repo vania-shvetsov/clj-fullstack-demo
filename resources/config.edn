@@ -1,4 +1,6 @@
-{:jetty {:port #profile {:prod #env PORT
+{:env #profile {:prod :prod
+                :dev :dev}
+ :jetty {:port #profile {:prod #env PORT
                          :dev #or [#env PORT 3000]}
          :join? #profile {:prod true
                           :dev false}}
