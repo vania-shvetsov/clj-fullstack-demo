@@ -59,27 +59,27 @@
 
 ;; Routes
 
-(defroutes api
-  (GET "/api/patients"
+(defroutes app-api
+  (GET "/patients"
        [offset :<< as-int
         limit :<< as-int]
        (handler-get-patients offset limit))
-  (GET "/api/patients/:id"
+  (GET "/patients/:id"
        [id :<< as-int]
        (handler-get-patient-by-id id))
-  (POST "/api/patients"
+  (POST "/patients"
         req
         (handler-create-new-patient (-> req :body :data)))
-  (PUT "/api/patients/:id"
+  (PUT "/patients/:id"
        [id :<< as-int
         :as req]
        (handler-update-patient id (-> req :body :data)))
-  (DELETE "/api/patients/:id"
+  (DELETE "/patients/:id"
           [id :<< as-int]
           (handler-delete-patient id)))
 
-(defroutes app-raw
-  (-> api
+(defroutes app*
+  (-> (compojure/context "/api" [] app-api)
       (json/wrap-json-response)
       (json/wrap-json-body {:keywords? true})))
 
