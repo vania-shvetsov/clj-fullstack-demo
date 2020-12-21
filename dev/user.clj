@@ -5,14 +5,15 @@
             [patients.server]
             [patients.db]))
 
-(defn refresh-all []
-  (refresh))
-
 (defn start []
   (mount/start))
 
 (defn stop []
   (mount/stop))
+
+(defn refresh-all []
+  (stop)
+  (refresh :after 'user/start))
 
 (comment
   (start)
