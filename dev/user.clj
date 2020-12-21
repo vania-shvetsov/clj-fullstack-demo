@@ -2,9 +2,10 @@
   (:require [clojure.tools.namespace.repl :refer [refresh]]
             [mount.core :as mount]
             [patients.config]
-            [patients.server]))
+            [patients.server]
+            [patients.db]))
 
-(defn restart []
+(defn refresh-all []
   (refresh))
 
 (defn start []
@@ -12,3 +13,9 @@
 
 (defn stop []
   (mount/stop))
+
+(comment
+  (start)
+  (stop)
+  (refresh-all)
+  )
