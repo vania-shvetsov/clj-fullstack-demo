@@ -8,27 +8,22 @@
 (def db-spec {:classname "org.postgresql.Driver"
               :subprotocol "postgresql"
               :dbtype "postgresql"
-              :host (-> config :db :host)
-              :port (-> config :db :port)
-              :dbname (-> config :db :dbname)
+              :subname (format "//%s:%s/%s"
+                               (-> config :db :host)
+                               (-> config :db :port)
+                               (-> config :db :dbname))
               :user (-> config :db :user)
               :password (-> config :db :password)})
 
 (defn jdbc-url [spec]
-  (format "jdbc:%s://%s:%s/%s"
+  (format "jdbc:%s:%s"
           (:subprotocol spec)
-          (:host spec)
-          (:port spec)
-          (:dbname spec)))
+          (:subname spec)))
 
 (defn datasource [spec]
   (doto (ComboPooledDataSource.)
     (.setDriverClass (:classname spec))
-    (.setJdbcUrl (format "jdbc:%s://%s:%s/%s"
-                         (:subprotocol spec)
-                         (:host spec)
-                         (:port spec)
-                         (:dbname spec)))
+    (.setJdbcUrl (jdbc-url spec))
     (.setUser (:user spec))
     (.setPassword (:password spec))
     (.setMaxIdleTimeExcessConnections (* 30 60))
@@ -42,7 +37,9 @@
   :stop
   (.close ds))
 
-(def db {:datasource ds})
+(defstate db
+  :start
+  {:datasource ds})
 
 (comment
   ;; Check db connection
