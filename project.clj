@@ -22,4 +22,9 @@
   :target-path "target/%s"
 
   :profiles {:uberjar {:aot :all
-                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
+                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}}
+
+  :aliases {"new-migration" ["trampoline" "run" "-m" "patients.migrations/new-migration"]
+            "migrate" ["trampoline" "run" "-m" "patients.migrations/migrate"]
+            "rollback" ["trampoline" "run" "-m" "patients.migrations/rollback"]
+            "pending-migrations" ["trampoline" "run" "-m" "patients.migrations/pending-list"]})

@@ -1,25 +1,26 @@
 {:env
  #profile {:prod :prod
            :dev :dev}
- :jetty {:port
-         #profile {:prod #env PORT
-                   :dev #or [#env PORT 3000]}
+
+ :jetty {:port #or [#env PORT 3000]
          :join?
          #profile {:prod true
                    :dev false}}
- :db {:host
-      #profile {:prod #env DB_HOST
-                :dev "localhost"}
-      :port
-      #profile {:prod #long #env DB_PORT
-                :dev 5432}
 
-      :user
-      #profile {:prod #env DB_USER
-                :dev "user1"}
-      :password
-      #profile {:prod #env DB_PASSWORD
-                :dev "12345"}
-      :dbname "patients_db"}
- :db-pool {:min-pool-size 10
-           :max-pool-size 10}}
+ :db-port #or [#env DB_PORT 5432]
+ :db-host #or [#env DB_HOST "localhost"]
+ :db-name #or [#env DB_NAME "patients_db"]
+
+ :db {:classname "org.postgresql.Driver"
+      :subprotocol "postgresql"
+      :dbtype "postgresql"
+      :subname #join ["//" #ref [:db-host] ":" #ref [:db-port] "/" #ref [:db-name]]
+      :user #or [#env DB_USER "user1"]
+      :password #or [#env DB_PASSWORD "12345"]}
+
+ :db-pool {:min-pool-size 3
+           :max-pool-size 10}
+
+ :migratus {:store :database
+            :migration-dir "migrations/"
+            :migration-table-name "migrations"}}

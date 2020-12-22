@@ -11,12 +11,12 @@
 (defn stop []
   (mount/stop))
 
-(defn refresh-all []
+(defn reset []
   (stop)
   (refresh :after 'user/start))
 
 (comment
   (start)
   (stop)
-  (refresh-all)
+  (reset)
   )
