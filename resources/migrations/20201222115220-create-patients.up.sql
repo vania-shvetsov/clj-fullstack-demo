@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS patients (
        id SERIAL PRIMARY KEY,
+       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
        first_name VARCHAR(50) NOT NULL,
        middle_name VARCHAR(50) NOT NULL,
        last_name VARCHAR(50) NOT NULL,
