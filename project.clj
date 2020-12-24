@@ -15,7 +15,9 @@
                  [aero "1.1.6"]
                  [migratus "1.3.3"]
                  [honeysql "1.0.444"]
-                 [com.mchange/c3p0 "0.9.5.5"]]
+                 [com.mchange/c3p0 "0.9.5.5"]
+                 [clj-time "0.15.2"]
+                 [org.clojure/tools.logging "1.1.0"]]
 
   :main ^:skip-aot patients.core
 

@@ -8,9 +8,26 @@
             [ring.middleware.stacktrace :as stacktrace]
             [ring.middleware.gzip :as gzip]
             [ring.logger :as logger]
+            [clj-time.format :as tf]
+            [cheshire.generate :refer [add-encoder]]
             [compojure.core :refer [GET POST PUT DELETE defroutes] :as compojure]
             [compojure.coercions :refer [as-int]]
-            [patients.config :refer [config]]))
+            [patients.config :refer [config]]
+            [patients.db :as db]
+            [patients.utils :as utils])
+  (:import (org.joda.time DateTime)))
+
+;; Dates encoding
+
+(def api-date-format (tf/formatter "yyyy-MM-dd"))
+
+(defn format-to-api-date [d]
+  (tf/unparse api-date-format d))
+
+(add-encoder DateTime
+             (fn [c jsonGenerator]
+               (.writeString jsonGenerator (format-to-api-date c))))
+
 
 ;; Middlewares
 
@@ -39,30 +56,58 @@
         (catch Throwable e
           err-prod-response)))))
 
+
 ;; Handlers
 
-(defn handler-get-patients [offset limit]
+(defn success [body]
   {:status 200
-   :body {:offset offset
-          :limit limit
-          :data [{:id 0 :name "vanya"}
-                 {:id 1 :name "petya"}]}})
+   :body body})
+
+(defn client-error
+  ([error]
+   (client-error error 400))
+  ([error status]
+   {:status status
+    :body {:error-type "client_error"
+           :error-details error}}))
+
+(defn server-error []
+  {:status 500
+   :headers {"Content-Type" "application/json"}
+   :body {:error "server_error"}})
+
+
+(defn handler-get-patients [offset limit]
+  (let [result (db/get-all-patients offset limit)]
+    (if (db/bad-query? result)
+      (client-error "Bad request")
+      (success {:offset offset
+                :limit limit
+                :data result}))))
 
 (defn handler-get-patient-by-id [id]
-  {:status 200
-   :body {:data {:id 0 :name "vanya"}}})
+  (let [result (db/get-patient-by-id id)]
+    (if (db/bad-query? result)
+      (client-error "Bad request")
+      (success {:data result}))))
 
 (defn handler-create-new-patient [patient]
-  {:status 200
-   :body {:data {:id 0}}})
+  (let [result (db/create-patient! patient)]
+    (if (db/bad-query? result)
+      (client-error "Bad request")
+      (success {:data {:id result}}))))
 
 (defn handler-update-patient [id data]
-  {:status 200
-   :body {:data {:id id}}})
+  (let [result (db/update-patient! id data)]
+    (if (db/bad-query? result)
+      (client-error "Bad request")
+      (success {:data {:id result}}))))
 
 (defn handler-delete-patient [id]
-  {:status 200
-   :body {:data "ok"}})
+  (let [result (db/delete-patient! id)]
+    (if (db/bad-query? result)
+      (client-error "Bad request")
+      (success {:data {:id result}}))))
 
 ;; Routes
 
@@ -76,22 +121,22 @@
        (handler-get-patient-by-id id))
   (POST "/patients"
         req
-        (handler-create-new-patient (-> req :body :data)))
+        (handler-create-new-patient (-> req :body)))
   (PUT "/patients/:id"
        [id :<< as-int
         :as req]
-       (handler-update-patient id (-> req :body :data)))
+       (handler-update-patient id (-> req :body)))
   (DELETE "/patients/:id"
           [id :<< as-int]
-          (handler-delete-patient id)))
+          (handler-delete-patient id))
+  (fn [_]
+    (client-error "Not found" 404)))
 
 (defroutes app*
   (-> (compojure/context "/api" [] app-api)
-      (wrap-exception {:status 500
-                       :headers {"Content-Type" "application/json"}
-                       :body {:error "server_error"}})
+      (wrap-exception (server-error))
       (json/wrap-json-body {:keywords? true})
-      json/wrap-json-response))
+      (json/wrap-json-response {:key-fn utils/->snake-case-string})))
 
 ;; App
 
@@ -104,6 +149,4 @@
                                        :transform-fn #(assoc % :level :info)})
       wrap-params
       gzip/wrap-gzip
-      (wrap-exception {:status 500
-                       :headers {"Content-Type" "text/html"}
-                       :body "Inner error"})))
+      (wrap-exception (server-error))))
