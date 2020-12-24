@@ -45,83 +45,74 @@
 
 ;; Queries helpers
 
-(defn sql-insert [table entity]
-  (-> (hh/insert-into table)
-      (hh/values [entity])
-      sql/format))
+(defmacro ->sql [& subs]
+  `(-> ~@subs
+       sql/format))
 
-(defn sql-update [table id entity]
-  (-> (hh/update table)
-      (hh/sset entity)
-      (hh/where [:= :id id])
-      sql/format))
+(defmacro safe-query [& body]
+  `(try
+     ~@body
+     (catch java.sql.SQLException e#
+       (log/error (.getMessage e#))
+       :db-error)))
 
-(defn sql-delete [table id]
-  (-> (hh/delete-from table)
-      (hh/where [:= :id id])
-      sql/format))
-
-(defn sql-get [s]
-  (sql/format s))
-
-(defn execute! [db sql-fn & args]
-  (let [s (apply sql-fn args)]
-    (try
-      (let [result (jdbc/execute! db s {:return-keys ["id"]})]
-        (:id result))
-      (catch Exception e
-        (log/error (.getMessage e))
-        :bad-query))))
-
-(defn insert-entity! [db table entity]
-  (execute! db sql-insert table entity))
-
-(defn update-entity! [db table id entity]
-  (execute! db sql-update table id entity))
-
-(defn delete-entity! [db table id]
-  (execute! db sql-delete table id))
-
-(defn fetch-entities [db s]
-  (try
-    (jdbc/query db (sql-get s))
-    (catch Exception e
-      (log/error (.getMessage e))
-      :bad-query)))
+(defn bad-result? [result]
+  (= result :db-error))
 
 ;; Queries
 
-(defn get-patient-by-id [patient-id]
-  (->
-   (fetch-entities db (-> (hh/select :*)
-                          (hh/from :patients)
-                          (hh/where [:= :id patient-id])))
-   first))
+(defn get-patients [offset limit]
+  (safe-query
+   (jdbc/with-db-transaction [c db]
+     (let [data (jdbc/query c
+                            (->sql (hh/select :*)
+                                   (hh/from :patients)
+                                   (hh/order-by :created-at)
+                                   (hh/offset offset)
+                                   (hh/limit limit)))
+           total (jdbc/query c (->sql (hh/select :%count.id)
+                                      (hh/from :patients)))]
+       {:data data
+        :total (-> total first :count)}))))
 
-(defn get-all-patients [offset limit]
-  (fetch-entities db (-> (hh/select :*)
-                         (hh/from :patients)
-                         (hh/order-by :created-at)
-                         (hh/offset offset)
-                         (hh/limit limit))))
+(defn get-patient-by-id [patient-id]
+  (safe-query
+   (let [data (jdbc/query db
+                          (->sql (hh/select :*)
+                                 (hh/from :patients)
+                                 (hh/where [:= :id patient-id])))]
+     (first data))))
 
 (defn create-patient! [patient]
-  (insert-entity! db :patients patient))
+  (safe-query
+   (let [data (jdbc/execute! db
+                             (->sql (hh/insert-into :patients)
+                                    (hh/values [patient]))
+                             {:return-keys ["id"]})]
+     (:id data))))
 
 (defn update-patient! [id patient]
-  (update-entity! db :patients id patient))
+  (safe-query
+   (let [data (jdbc/execute! db
+                             (->sql (hh/update :patients)
+                                    (hh/sset patient)
+                                    (hh/where [:= :id id]))
+                             {:return-keys ["id"]})]
+     (:id data))))
 
-(defn delete-patient! [patient-id]
-  (delete-entity! db :patients patient-id))
+(defn delete-patient! [id]
+  (safe-query
+   (let [data (jdbc/execute! db
+                             (->sql (hh/delete-from :patients)
+                                    (hh/where [:= :id id]))
+                             {:return-keys ["id"]})]
+     (:id data))))
 
-
-(defn bad-query? [result]
-  (= result :bad-query))
 
 (comment
   (get-patient-by-id 3)
 
-  (get-all-patients 10 -1)
+  (get-patients 0 1)
 
   (create-patient! {:first-name "Василий"
                     :middle-name "Васильевич"
@@ -131,13 +122,13 @@
                     :address "Moscow"
                     :oms-number "1234567890123456"})
 
-  (update-patient! 3 {:first-name "Андрей"
-                    :middle-name "Андреевич"
-                    :last-name "Андреев"
-                    :gender "male"
-                    :birth-date (t/date-time 1980 1 15)
-                    :address "Moscow"
-                    :oms-number "1234567890123456"})
+  (update-patient! 4 {:first-name "Андрей"
+                      :middle-name "Андреевич"
+                      :last-name "Андреев"
+                      :gender "male"
+                      :birth-date (t/date-time 1980 1 15)
+                      :address "Moscow"
+                      :oms-number "1234567890123456"})
 
-  (delete-patient! 2)
+  (delete-patient! 5)
   )

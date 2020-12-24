@@ -56,8 +56,7 @@
         (catch Throwable e
           err-prod-response)))))
 
-
-;; Handlers
+;; Response helpers
 
 (defn success [body]
   {:status 200
@@ -76,10 +75,11 @@
    :headers {"Content-Type" "application/json"}
    :body {:error "server_error"}})
 
+;; Handlers
 
 (defn handler-get-patients [offset limit]
-  (let [result (db/get-all-patients offset limit)]
-    (if (db/bad-query? result)
+  (let [result (db/get-patients offset limit)]
+    (if (db/bad-result? result)
       (client-error "Bad request")
       (success {:offset offset
                 :limit limit
@@ -87,25 +87,25 @@
 
 (defn handler-get-patient-by-id [id]
   (let [result (db/get-patient-by-id id)]
-    (if (db/bad-query? result)
+    (if (db/bad-result? result)
       (client-error "Bad request")
       (success {:data result}))))
 
 (defn handler-create-new-patient [patient]
   (let [result (db/create-patient! patient)]
-    (if (db/bad-query? result)
+    (if (db/bad-result? result)
       (client-error "Bad request")
       (success {:data {:id result}}))))
 
 (defn handler-update-patient [id data]
   (let [result (db/update-patient! id data)]
-    (if (db/bad-query? result)
+    (if (db/bad-result? result)
       (client-error "Bad request")
       (success {:data {:id result}}))))
 
 (defn handler-delete-patient [id]
   (let [result (db/delete-patient! id)]
-    (if (db/bad-query? result)
+    (if (db/bad-result? result)
       (client-error "Bad request")
       (success {:data {:id result}}))))
 
