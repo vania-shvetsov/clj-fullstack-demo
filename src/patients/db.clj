@@ -6,6 +6,7 @@
             [clj-time.core :as t]
             [clj-time.jdbc]
             [clojure.tools.logging :as log]
+            [camel-snake-kebab.core :as csk]
             [patients.config :refer [config]])
   (:import (com.mchange.v2.c3p0 ComboPooledDataSource)))
 
@@ -21,7 +22,6 @@
         password (-> c :db :password)
         max-pool-size (-> c :db-pool :max-pool-size)
         min-pool-size (-> c :db-pool :min-pool-size)]
-    (println classname url user password max-pool-size min-pool-size)
     (doto (ComboPooledDataSource.)
       (.setDriverClass classname)
       (.setJdbcUrl url)
@@ -69,10 +69,11 @@
                                    (hh/from :patients)
                                    (hh/order-by :created-at)
                                    (hh/offset offset)
-                                   (hh/limit limit)))
+                                   (hh/limit limit))
+                            {:identifiers csk/->kebab-case-string})
            total (jdbc/query c (->sql (hh/select :%count.id)
                                       (hh/from :patients)))]
-       {:data data
+       {:data (doall data)
         :total (-> total first :count)}))))
 
 (defn get-patient-by-id [patient-id]

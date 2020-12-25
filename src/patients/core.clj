@@ -1,7 +1,6 @@
 (ns patients.core)
 
-
-;; Migrations via lein plugin
+;; TODO: add kill signal handling
 
 (defn -main
   [& args])

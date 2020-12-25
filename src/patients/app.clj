@@ -1,5 +1,6 @@
 (ns patients.app
   (:require [clojure.string :as string]
+            [clojure.spec.alpha :as s]
             [ring.middleware.resource :as resource]
             [ring.middleware.content-type :as content-type]
             [ring.middleware.params :as params]
@@ -12,22 +13,117 @@
             [cheshire.generate :refer [add-encoder]]
             [compojure.core :refer [GET POST PUT DELETE defroutes] :as compojure]
             [compojure.coercions :refer [as-int]]
+            [camel-snake-kebab.core :as csk]
+            [camel-snake-kebab.extras :as cske]
             [patients.config :refer [config]]
-            [patients.db :as db]
-            [patients.utils :as utils])
+            [patients.db :as db])
   (:import (org.joda.time DateTime)))
 
 ;; Dates encoding
 
-(def api-date-format (tf/formatter "yyyy-MM-dd"))
+(def date-format (tf/formatter "yyyy-MM-dd"))
 
-(defn format-to-api-date [d]
-  (tf/unparse api-date-format d))
+(defn api-date-format [d]
+  (tf/unparse date-format d))
 
 (add-encoder DateTime
              (fn [c jsonGenerator]
-               (.writeString jsonGenerator (format-to-api-date c))))
+               (.writeString jsonGenerator (api-date-format c))))
 
+
+;; Specs
+
+(def default-error-message "Не верное значение")
+
+(def error-messages
+  {::ne-string "Значение не может быть пустым"
+   :patient/first-name "Имя должно содержать от 2 до 50 символов"
+   :patient/middle-name "Отчество должно содержать от 2 до 50 символов"
+   :patient/last-name "Отчество должно содержать от 2 до 50 символов"
+   :patient/gender "Не верное значение пола"
+   :patient/address "Адрес должен содержать от 2 до 150 символов"
+   :patient/birth-date "Дата рождения должна быть в формате ГГГГ-ММ-ДД"
+   :patient/oms-number "Номер полиса ОМС должен содержать 16 цифр"})
+
+(defn error-msg [problem dict]
+  (let [last-spec (-> problem :via peek)
+        msg (get dict last-spec)]
+    (if msg msg default-error-message)))
+
+(defn validation-errors [spec-result dict]
+  (when spec-result
+    (into {}
+          (map (fn [problem]
+                 (let [field (-> problem :in peek name keyword)]
+                   [field (error-msg problem dict)]))
+               (:clojure.spec.alpha/problems spec-result)))))
+
+(defn validate-and-conform [spec dict value]
+  (prn value)
+  (let [r (s/conform spec value)]
+    (if (= :clojure.spec.alpha/invalid r)
+      {:ok false
+       :errors (validation-errors (s/explain-data spec value) dict)}
+      {:ok true
+       :data r})))
+
+(s/def ::string string?)
+
+(s/def ::->ne-string (s/conformer string/trim))
+
+(s/def ::ne-string
+  (s/and string? ::->ne-string not-empty))
+
+(s/def ::->date
+  (s/and
+   ::ne-string
+   (s/conformer
+    (fn [value]
+      (try
+        (tf/parse date-format value)
+        (catch Exception e
+          ::s/invalid))))))
+
+(s/def :patient/name
+  (s/and ::ne-string
+         (partial re-matches #"[a-zA-Zа-яА-Я]{2,50}")))
+
+(s/def :patient/first-name (s/spec :patient/name))
+
+(s/def :patient/middle-name (s/spec :patient/name))
+
+(s/def :patient/last-name (s/spec :patient/name))
+
+(s/def :patient/gender #{"male" "female"})
+
+(s/def :patient/address
+  (s/and ::ne-string
+         (partial re-matches #"[\w\s,\.-]{2,150}")))
+
+(s/def :patient/birth-date (s/spec ::->date))
+
+(s/def :patient/oms-number
+  (s/and ::ne-string
+         (partial re-matches #"\d{16}")))
+
+(s/def ::patient
+  (s/keys :req-un [:patient/first-name
+                   :patient/middle-name
+                   :patient/last-name
+                   :patient/gender
+                   :patient/address
+                   :patient/birth-date
+                   :patient/oms-number]))
+
+
+
+(def x {:first-name "af"
+        :middle-name "df"
+        :last-name "asd"
+        :gender "male"
+        :address "asd"
+        :birth-date "1990-10-10"
+        :oms-number "1234567890123456"})
 
 ;; Middlewares
 
@@ -63,12 +159,18 @@
    :body body})
 
 (defn client-error
-  ([error]
-   (client-error error 400))
-  ([error status]
+  ([descriptor]
+   (client-error 400 descriptor))
+  ([status descriptor]
    {:status status
-    :body {:error-type "client_error"
-           :error-details error}}))
+    :body (merge {:error "client_error"} descriptor)}))
+
+(defn client-validation-error [errors]
+  (client-error {:error "invalid_data"
+                 :data errors}))
+
+(defn bad-request-error []
+  (client-error {:error "bad_request"}))
 
 (defn server-error []
   {:status 500
@@ -80,33 +182,41 @@
 (defn handler-get-patients [offset limit]
   (let [result (db/get-patients offset limit)]
     (if (db/bad-result? result)
-      (client-error "Bad request")
+      (bad-request-error)
       (success {:offset offset
                 :limit limit
-                :data result}))))
+                :total (:total result)
+                :data (:data result)}))))
+
 
 (defn handler-get-patient-by-id [id]
   (let [result (db/get-patient-by-id id)]
     (if (db/bad-result? result)
-      (client-error "Bad request")
+      (bad-request-error)
       (success {:data result}))))
 
 (defn handler-create-new-patient [patient]
-  (let [result (db/create-patient! patient)]
-    (if (db/bad-result? result)
-      (client-error "Bad request")
-      (success {:data {:id result}}))))
+  (let [vr (validate-and-conform ::patient error-messages patient)]
+    (if (:ok vr)
+      (let [result (db/create-patient! (:data vr))]
+        (if (db/bad-result? result)
+          (bad-request-error)
+          (success {:data {:id result}})))
+      (client-validation-error (:errors vr)))))
 
 (defn handler-update-patient [id data]
-  (let [result (db/update-patient! id data)]
-    (if (db/bad-result? result)
-      (client-error "Bad request")
-      (success {:data {:id result}}))))
+  (let [vr (validate-and-conform ::patient error-messages data)]
+    (if (:ok vr)
+      (let [result (db/update-patient! id (:data vr))]
+        (if (db/bad-result? result)
+          (bad-request-error)
+          (success {:data {:id result}})))
+      (client-validation-error (:errors vr)))))
 
 (defn handler-delete-patient [id]
   (let [result (db/delete-patient! id)]
     (if (db/bad-result? result)
-      (client-error "Bad request")
+      (bad-request-error)
       (success {:data {:id result}}))))
 
 ;; Routes
@@ -130,13 +240,20 @@
           [id :<< as-int]
           (handler-delete-patient id))
   (fn [_]
-    (client-error "Not found" 404)))
+    (client-error 404 {:error "not_found"})))
+
+(defn wrap-kebab-body [handler]
+  (fn [request]
+    (if (some? (:body request))
+      (handler (update request :body (partial cske/transform-keys csk/->kebab-case-keyword)))
+      (handler request))))
 
 (defroutes app*
   (-> (compojure/context "/api" [] app-api)
       (wrap-exception (server-error))
-      (json/wrap-json-body {:keywords? true})
-      (json/wrap-json-response {:key-fn utils/->snake-case-string})))
+      (wrap-kebab-body)
+      (json/wrap-json-response {:key-fn csk/->snake_case_string})
+      (json/wrap-json-body)))
 
 ;; App
 

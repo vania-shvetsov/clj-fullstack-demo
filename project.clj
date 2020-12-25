@@ -17,7 +17,8 @@
                  [honeysql "1.0.444"]
                  [com.mchange/c3p0 "0.9.5.5"]
                  [clj-time "0.15.2"]
-                 [org.clojure/tools.logging "1.1.0"]]
+                 [org.clojure/tools.logging "1.1.0"]
+                 [camel-snake-kebab "0.4.2"]]
 
   :main ^:skip-aot patients.core
 
