@@ -13,13 +13,13 @@
             [cheshire.generate :refer [add-encoder]]
             [compojure.core :refer [GET POST PUT DELETE defroutes] :as compojure]
             [compojure.coercions :refer [as-int]]
-            [camel-snake-kebab.core :as csk]
-            [camel-snake-kebab.extras :as cske]
             [patients.config :refer [config]]
             [patients.db :as db])
   (:import (org.joda.time DateTime)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Dates encoding
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def date-format (tf/formatter "yyyy-MM-dd"))
 
@@ -30,8 +30,9 @@
              (fn [c jsonGenerator]
                (.writeString jsonGenerator (api-date-format c))))
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Specs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def default-error-message "Не верное значение")
 
@@ -115,17 +116,9 @@
                    :patient/birth-date
                    :patient/oms-number]))
 
-
-
-(def x {:first-name "af"
-        :middle-name "df"
-        :last-name "asd"
-        :gender "male"
-        :address "asd"
-        :birth-date "1990-10-10"
-        :oms-number "1234567890123456"})
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Middlewares
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn wrap-params [handler]
   (-> handler
@@ -152,7 +145,9 @@
         (catch Throwable e
           err-prod-response)))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Response helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn success [body]
   {:status 200
@@ -177,7 +172,9 @@
    :headers {"Content-Type" "application/json"}
    :body {:error "server_error"}})
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Handlers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn handler-get-patients [offset limit]
   (let [result (db/get-patients offset limit)]
@@ -219,7 +216,9 @@
       (bad-request-error)
       (success {:data {:id result}}))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Routes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defroutes app-api
   (GET "/patients"
@@ -242,20 +241,15 @@
   (fn [_]
     (client-error 404 {:error "not_found"})))
 
-(defn wrap-kebab-body [handler]
-  (fn [request]
-    (if (some? (:body request))
-      (handler (update request :body (partial cske/transform-keys csk/->kebab-case-keyword)))
-      (handler request))))
-
 (defroutes app*
   (-> (compojure/context "/api" [] app-api)
       (wrap-exception (server-error))
-      (wrap-kebab-body)
-      (json/wrap-json-response {:key-fn csk/->snake_case_string})
-      (json/wrap-json-body)))
+      (json/wrap-json-response)
+      (json/wrap-json-body {:keywords? true})))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; App
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def app
   (-> #'app*

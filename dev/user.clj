@@ -1,9 +1,16 @@
 (ns user
   (:require [clojure.tools.namespace.repl :refer [refresh]]
             [mount.core :as mount]
+            [figwheel.main.api :as fig]
             [patients.config]
             [patients.server]
             [patients.db]))
+
+(defn start-client []
+  (fig/start "dev"))
+
+(defn stop-client []
+  (fig/stop "dev"))
 
 (defn start []
   (mount/start))
@@ -19,4 +26,6 @@
   (start)
   (stop)
   (reset)
+  (start-client)
+  (stop-client)
   )

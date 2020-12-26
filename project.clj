@@ -18,14 +18,26 @@
                  [com.mchange/c3p0 "0.9.5.5"]
                  [clj-time "0.15.2"]
                  [org.clojure/tools.logging "1.1.0"]
-                 [camel-snake-kebab "0.4.2"]]
+                 [org.clojure/clojurescript "1.10.773"]
+                 [reagent "1.0.0"]
+                 [cljs-ajax "0.8.1"]
+                 [re-frame "1.1.2"]
+                 [day8.re-frame/http-fx "0.2.2"]
+                 [clj-commons/secretary "1.2.4"]]
 
   :main ^:skip-aot patients.core
 
   :target-path "target/%s"
 
+  :plugins [[lein-cljsbuild "1.1.8"]]
+
   :profiles {:uberjar {:aot :all
-                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}}
+                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
+
+             :dev {:source-paths ["src" "dev"]
+                   :dependencies [[com.bhauman/figwheel-main "0.2.12"]
+                                  [cider/piggieback "0.5.2"]
+                                  [re-frisk "1.3.5"]]}}
 
   :aliases {"new-migration" ["trampoline" "run" "-m" "patients.migrations/new-migration"]
             "migrate" ["trampoline" "run" "-m" "patients.migrations/migrate"]

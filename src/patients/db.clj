@@ -6,9 +6,13 @@
             [clj-time.core :as t]
             [clj-time.jdbc]
             [clojure.tools.logging :as log]
-            [camel-snake-kebab.core :as csk]
+            [patients.utils :refer [->kebab-case-string]]
             [patients.config :refer [config]])
   (:import (com.mchange.v2.c3p0 ComboPooledDataSource)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; State
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn jdbc-url [c]
   (format "jdbc:%s:%s"
@@ -43,7 +47,9 @@
   (jdbc/query db ["select 3*5 as result"])
   )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Queries helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro ->sql [& subs]
   `(-> ~@subs
@@ -59,18 +65,25 @@
 (defn bad-result? [result]
   (= result :db-error))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-patients [offset limit]
   (safe-query
    (jdbc/with-db-transaction [c db]
      (let [data (jdbc/query c
-                            (->sql (hh/select :*)
+                            (->sql (hh/select :id
+                                              :created-at
+                                              :first-name
+                                              :middle-name
+                                              :last-name
+                                              :birth-date)
                                    (hh/from :patients)
                                    (hh/order-by :created-at)
                                    (hh/offset offset)
                                    (hh/limit limit))
-                            {:identifiers csk/->kebab-case-string})
+                            {:identifiers ->kebab-case-string})
            total (jdbc/query c (->sql (hh/select :%count.id)
                                       (hh/from :patients)))]
        {:data (doall data)
@@ -81,7 +94,8 @@
    (let [data (jdbc/query db
                           (->sql (hh/select :*)
                                  (hh/from :patients)
-                                 (hh/where [:= :id patient-id])))]
+                                 (hh/where [:= :id patient-id]))
+                          {:identifiers ->kebab-case-string})]
      (first data))))
 
 (defn create-patient! [patient]
@@ -109,11 +123,14 @@
                              {:return-keys ["id"]})]
      (:id data))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Examples
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (comment
   (get-patient-by-id 3)
 
-  (get-patients 0 1)
+  (get-patients 0 5)
 
   (create-patient! {:first-name "Василий"
                     :middle-name "Васильевич"
