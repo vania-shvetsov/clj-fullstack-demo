@@ -23,7 +23,8 @@
                  [cljs-ajax "0.8.1"]
                  [re-frame "1.1.2"]
                  [day8.re-frame/http-fx "0.2.2"]
-                 [clj-commons/secretary "1.2.4"]]
+                 [clj-commons/secretary "1.2.4"]
+                 [fork "2.2.5"]]
 
   :main ^:skip-aot patients.core
 
