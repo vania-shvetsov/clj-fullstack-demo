@@ -19,23 +19,16 @@
        (string/capitalize middle-name) " "
        (string/capitalize last-name)))
 
-(defn patient-form-state []
-  {:values
-   {:first-name ""
-    :middle-name ""
-    :last-name ""
-    :address ""
-    :birth-date ""
-    :gender "male"
-    :oms-number ""}
-   :errors {}})
+(defn calc-page [items-count per-page]
+  (.ceil js/Math (/ items-count per-page)))
 
-(def items-per-page 5)
+(def items-per-page 4)
 
 (defn initial-db []
   {:route nil
    :patients []
-    ;; {<patient-id> {:open? false}}
+   ;; {<patient-id> {:open? false
+   ;;                :load? false}}
    :patient-items {}
    ;; :done :work :error
    :requests {:fetch-patients :done
@@ -43,14 +36,13 @@
               :create-patient :done
               :update-patient :done
               :delete-patient :done}
-   :current-page 0
-   :total-pages 0
-   :new-patient-form (patient-form-state)})
+   :offset 0
+   :total 0})
 
 (rf/reg-fx
  :confirm
- (fn [{:keys [on-ok on-cancel]}]
-   (let [ok? (.confirm js/window )]
+ (fn [{:keys [on-ok on-cancel message]}]
+   (let [ok? (.confirm js/window message)]
      (if ok?
        (when on-ok (rf/dispatch on-ok))
        (when on-cancel (rf/dispatch on-cancel))))))
@@ -105,8 +97,8 @@
    (let [{:keys [total data]} response]
      (-> db
          (assoc :patient-items {}
-                :current-page page
-                :total-pages (.ceil js/Math (/ total items-per-page))
+                :offset (* items-per-page page)
+                :total total
                 :patients (mapv #(assoc % :fullness :partial) data))
          (assoc-in [:requests :fetch-patients] :done)))))
 
@@ -118,54 +110,74 @@
 (rf/reg-event-fx
  :fetch-patient-by-id
  (fn [{:keys [db]} [_ id]]
-   {:db (assoc-in db [:requests :fetch-patient-by-id] :work)
+   {:db (-> db
+            (assoc-in [:requests :fetch-patient-by-id] :work)
+            (assoc-in [:patient-items id :loading?] true))
     :http-xhrio (in-json {:method :get
                           :uri (str "/api/patients/" id)
                           :on-success [:fetch-patient-by-id-fulfilled]
-                          :on-failure [:fetch-patient-by-id-failure]})}))
+                          :on-failure [:fetch-patient-by-id-failure id]})}))
 
 (rf/reg-event-db
  :fetch-patient-by-id-fulfilled
  (fn [db [_ response]]
-   (let [{:keys [data]} response]
+   (let [{:keys [data]} response
+         id (:id data)]
      (if (some? data)
        (let [patients (:patients db)
-             i (utils/find-index #(= (:id %) (:id data)) patients)
+             i (utils/find-index #(= (:id %) id) patients)
              patient (assoc data :fullness :complete)
              patients' (if i
                          (update patients i merge patient)
                          (conj patients patient))]
          (-> db
              (assoc :patients patients')
-             (assoc-in [:requests :fetch-patient-by-id] :done)))
+             (assoc-in [:requests :fetch-patient-by-id] :done)
+             (assoc-in [:patient-items id :loading?] false)))
        db))))
 
 (rf/reg-event-db
  :fetch-patient-by-id-failure
- (fn [db]
-   (assoc-in db [:requests :fetch-patient-by-id] :error)))
+ (fn [db [_ id]]
+   (-> db
+       (assoc-in [:requests :fetch-patient-by-id] :error)
+       (assoc-in [:patient-items id :loading?] false))))
 
 (rf/reg-event-fx
  :delete-patient
- (fn [{:keys [db]} [_ id]]
-   {:confirm {:on-ok [:delete-patient-continue id]}}))
+ (fn [{:keys [db]} [_ id index]]
+   {:confirm {:message "Удалить данные о пациенте?"
+              :on-ok [:delete-patient-continue id index]}}))
 
 (rf/reg-event-fx
  :delete-patient-continue
- (fn [{:keys [db]} [_ id]]
+ (fn [{:keys [db]} [_ id index]]
    {:db (assoc-in db [:requests :delete-patient] :work)
     :http-xhrio (in-json {:method :delete
                           :uri (str "/api/patients/" id)
-                          :on-success [:delete-patient-fulfilled id]
+                          :on-success [:delete-patient-fulfilled id index]
                           :on-failure [:delete-patient-failure]})}))
 
-(rf/reg-event-db
+(rf/reg-event-fx
  :delete-patient-fulfilled
- (fn [db [_ id]]
-   (-> db
-       (assoc-in [:requests :delete-patient] :done)
-       (update :patients (fn [v] (into [] (remove #(= (:id %) id) v)))))))
+ (fn [{:keys [db]} [_ id index]]
+   (let [{:keys [total offset]} db
+         total' (dec total)
+         ;; If it was the last item on current page
+         need-to-change-offset? (<= total' offset)
+         offset' (if need-to-change-offset?
+                     (max 0 (- offset items-per-page))
+                     offset)
+         fx
+         {:db (-> db
+                  (assoc :total total'
+                         :offset offset')
+                  (assoc-in [:requests :delete-patient] :done)
+                  (update :patients (fn [v] (into [] (remove #(= (:id %) id) v)))))}]
 
+     (if need-to-change-offset?
+       (assoc fx :dispatch [:fetch-patients (calc-page offset' items-per-page)])
+       fx))))
 
 (rf/reg-event-db
  :switch-open-patient-item
@@ -185,13 +197,29 @@
 (rf/reg-sub
  :pagination
  (fn [db]
-   {:current (:current-page db)
-    :total (:total-pages db)}))
+   {:current (calc-page (:offset db) items-per-page)
+    :total (calc-page (:total db) items-per-page)}))
 
 (rf/reg-sub
  :patient-item-open?
  (fn [db [_ id]]
    (get-in db [:patient-items id :open?])))
+
+(rf/reg-sub
+ :patient-item-loading?
+ (fn [db [_ id]]
+   (boolean (get-in db [:patient-items id :loading?]))))
+
+(rf/reg-sub
+ :request-status
+ (fn [db [_ request-name]]
+   (get-in db [:requests request-name])))
+
+(rf/reg-sub
+ :request-work?
+ (fn [db [_ request-name]]
+   (= (get-in db [:requests request-name])
+      :work)))
 
 (comment
   (rf/dispatch [:fetch-patients 2])

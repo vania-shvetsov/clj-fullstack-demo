@@ -74,11 +74,9 @@
    (jdbc/with-db-transaction [c db]
      (let [data (jdbc/query c
                             (->sql (hh/select :id
-                                              :created-at
                                               :first-name
                                               :middle-name
-                                              :last-name
-                                              :birth-date)
+                                              :last-name)
                                    (hh/from :patients)
                                    (hh/order-by :created-at)
                                    (hh/offset offset)
