@@ -10,16 +10,16 @@
            [goog.history EventType]))
 
 (defroute "/" []
-  (rf/dispatch [:change-route :patient-list]))
+  (rf/dispatch [:navigation/set-route :patient-list]))
 
 (defroute "/new-patient" []
-  (rf/dispatch [:change-route :new-patient]))
+  (rf/dispatch [:navigation/set-route :new-patient]))
 
-(defroute edit-patient "/edit-patient/:id" [id]
-  (rf/dispatch [:change-route :edit-patient {:id id}]))
+(defroute edit-patient #"/edit-patient/(\d+)" [id]
+  (rf/dispatch [:navigation/set-route :edit-patient {:id (int id)}]))
 
 (defroute "*" []
-  (rf/dispatch [:change-route :not-found]))
+  (rf/dispatch [:navigation/set-route :not-found]))
 
 (def route-table
   {:patient-list views/page-patients
@@ -28,16 +28,16 @@
    :not-found views/page-not-found})
 
 (defn router []
-  (let [route @(rf/subscribe [:route])]
-    (when route
-      (let [{:keys [name params]} route]
-        [(get route-table name) params]))))
+  (when-let [route @(rf/subscribe [:navigation/current-route])]
+    [(route-table (:name route))
+     (:params route)]))
 
 (defn render []
-  (rdom/render [#'views/app router] (.querySelector js/document "#app")))
+  (rdom/render [#'views/app router]
+               (.querySelector js/document "#app")))
 
 (defn ^:export run-app []
-  (rf/dispatch-sync [:initialize])
+  (rf/dispatch-sync [:init-db])
   (render))
 
 (defn ^:after-load re-render []
