@@ -93,7 +93,7 @@
 
 (s/def :patient/name
   (s/and ::ne-string
-         (partial re-matches #"[a-zA-Zа-яА-Я]{2,50}")))
+         (partial re-matches #"(?i)(?u)[a-zа-я]{2,50}")))
 
 (s/def :patient/first-name (s/spec :patient/name))
 
@@ -105,7 +105,7 @@
 
 (s/def :patient/address
   (s/and ::ne-string
-         (partial re-matches #"[\w\s,\.-]{2,150}")))
+         (partial re-matches #"(?i)(?u)[a-zа-я\s,\.-]{2,150}")))
 
 (s/def :patient/birth-date (s/spec ::->date))
 
