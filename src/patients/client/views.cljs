@@ -115,6 +115,10 @@
       (let [pagination (rf/subscribe [:patients/pagination])]
         (rf/dispatch [:patients/load-initial-patients])))
 
+    :component-will-unmount
+    (fn []
+      (rf/dispatch [:reset-page :patients]))
+
     :reagent-render
     (fn []
       [:div
@@ -268,6 +272,10 @@
     (r/create-class
      {:component-did-mount
       (fn [] (rf/dispatch [:edit-patient/load-patient id]))
+
+      :component-will-unmount
+      (fn []
+        (rf/dispatch [:reset-page :edit-patient]))
 
       :reagent-render
       (fn []

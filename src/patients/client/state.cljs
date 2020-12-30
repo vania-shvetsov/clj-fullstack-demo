@@ -33,20 +33,23 @@
 
 (def items-per-page 4)
 
-(defn initial-db []
+(def default-page-states
+  {:patients {:data {:offset 0
+                     :total 0
+                     :patients []}
+              :ui {:items {}}
+              :process {:request-fetch-patients :init
+                        :request-fetch-patient-by-id :init
+                        :request-delete-patient :init}}
+
+   :edit-patient {:data {:patient nil}
+                  :process {:request-fetch-patient :init
+                            :request-edit-patient :init}}})
+
+(def initial-db
   {:route nil
-
-   :pages {:patients {:data {:offset 0
-                             :total 0
-                             :patients []}
-                      :ui {:items {}}
-                      :process {:request-fetch-patients :init
-                                :request-fetch-patient-by-id :init
-                                :request-delete-patient :init}}
-
-           :edit-patient {:data {:patient nil}
-                          :process {:request-fetch-patient :init
-                                    :request-edit-patient :init}}}})
+   :pages {:patients (:patients default-page-states)
+           :edit-patient (:edit-patient default-page-states)}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Common fx
@@ -64,6 +67,11 @@
  :form/reset-field-error
  (fn [db [_ path field-name]]
    (update-in db (conj path :server ) dissoc field-name)))
+
+(rf/reg-event-db
+ :reset-page
+ (fn [db [_ page-name]]
+   (assoc-in db [:pages page-name] (get default-page-states page-name))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Navigation
@@ -108,7 +116,7 @@
 
 (rf/reg-event-db
  :init-db
- (fn [_ _] (initial-db)))
+ (fn [_ _] initial-db))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Page "patients"
@@ -126,7 +134,7 @@
 (rf/reg-event-fx
  :patients/load-n-page-patients
  [(rf/path :pages :patients)]
- (fn [{:keys [db]} [_ page]]
+ (fn [{db :db} [_ page]]
    (let [offset (* items-per-page page)
          limit items-per-page]
      {:db (-> db
@@ -160,7 +168,7 @@
 (rf/reg-event-fx
  :patients/load-patient-details
  [(rf/path :pages :patients)]
- (fn [{:keys [db]} [_ id]]
+ (fn [{db :db} [_ id]]
    {:db (-> db
             (assoc-in [:process :request-fetch-patient-by-id] :work)
             (assoc-in [:ui :items id :loading?] true))
@@ -198,14 +206,14 @@
 
 (rf/reg-event-fx
  :patients/try-to-delete-patient
- (fn [{:keys [db]} [_ id]]
+ (fn [{db :db} [_ id]]
    {:dialog/confirm {:message "Удалить данные о пациенте?"
                      :on-ok [:patients/_actual-delete-patient id]}}))
 
 (rf/reg-event-fx
  :patients/_actual-delete-patient
  [(rf/path :pages :patients)]
- (fn [{:keys [db]} [_ id]]
+ (fn [{db :db} [_ id]]
    {:db (assoc-in db [:process :request-delete-patient] :work)
     :http-xhrio (in-json {:method :delete
                           :uri (str "/api/patients/" id)
@@ -214,7 +222,7 @@
 (rf/reg-event-fx
  :patients/_delete-patient-ok
  [(rf/path :pages :patients)]
- (fn [{:keys [db]} [_ id]]
+ (fn [{db :db} [_ id]]
    (let [{:keys [total offset]} (:data db)
          total' (dec total)
          move-to-prev-page? (<= total' offset)
@@ -240,41 +248,52 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (rf/reg-sub
- :patients/patients
+ :patients/_page
  (fn [db]
+   (get-in db [:pages :patients])))
+
+(rf/reg-sub
+ :patients/patients
+ :<- [:patients/_page]
+ (fn [page _]
    (mapv #(assoc % :fullname (->fullname %))
-         (get-in db [:pages :patients :data :patients]))))
+         (get-in page [:data :patients]))))
 
 (rf/reg-sub
  :patients/pagination
- (fn [db]
-   (let [{:keys [offset total]} (get-in db [:pages :patients :data])]
+ :<- [:patients/_page]
+ (fn [page]
+   (let [{:keys [offset total]} (:data page)]
      {:current (calc-page offset items-per-page)
       :total (calc-page total items-per-page)})))
 
 (rf/reg-sub
  :patients/item-open?
- (fn [db [_ id]]
-   (get-in db [:pages :patients :ui :items id :open?])))
+ :<- [:patients/_page]
+ (fn [page [_ id]]
+   (get-in page [:ui :items id :open?])))
 
 (rf/reg-sub
  :patients/item-loading?
- (fn [db [_ id]]
-   (boolean (get-in db [:pages :patients :ui :items id :loading?]))))
+ :<- [:patients/_page]
+ (fn [page [_ id]]
+   (boolean (get-in page [:ui :items id :loading?]))))
 
 (rf/reg-sub
  :patients/patient-subset-loading?
- (fn [db _]
-   (let [patients (get-in db [:pages :patients :data :patients])
-         req-status (get-in db [:pages :patients :process :request-fetch-patients])]
+ :<- [:patients/_page]
+ (fn [page _]
+   (let [patients (get-in page [:data :patients])
+         req-status (get-in page [:process :request-fetch-patients])]
      (and (not (empty? patients))
           (= req-status :work)))))
 
 (rf/reg-sub
  :patients/initial-patients-loading?
- (fn [db _]
-   (let [patients (get-in db [:pages :patients :data :patients])
-         req-status (get-in db [:pages :patients :process :request-fetch-patients])]
+ :<- [:patients/_page]
+ (fn [page _]
+   (let [patients (get-in page [:data :patients])
+         req-status (get-in page [:process :request-fetch-patients])]
      (and (empty? patients)
           (= req-status :work)))))
 
@@ -316,7 +335,7 @@
 (rf/reg-event-fx
  :edit-patient/load-patient
  [(rf/path :pages :edit-patient)]
- (fn [{:keys [db]} [_ id]]
+ (fn [{db :db} [_ id]]
    {:db (assoc-in db [:process :request-fetch-patient] :work)
     :http-xhrio (in-json {:method :get
                           :uri (str "/api/patients/" id)
@@ -342,20 +361,28 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (rf/reg-sub
+ :edit-patient/_page
+ (fn [db]
+   (get-in db [:pages :edit-patient])))
+
+(rf/reg-sub
  :edit-patient/patient
- (fn [db _]
-   (get-in db [:pages :edit-patient :data :patient])))
+ :<- [:edit-patient/_page]
+ (fn [page _]
+   (get-in page [:data :patient])))
 
 (rf/reg-sub
  :edit-patient/patient-loading?
- (fn [db _]
-   (let [req-status (get-in db [:pages :edit-patient :process :request-fetch-patient])]
+ :<- [:edit-patient/_page]
+ (fn [page _]
+   (let [req-status (get-in page [:process :request-fetch-patient])]
      (#{:work :init} req-status))))
 
 (rf/reg-sub
  :edit-patient/patient-exists?
- (fn [db _]
-   (let [req-status (get-in db [:pages :edit-patient :process :request-fetch-patient])
-         patient (get-in db [:pages :edit-patient :data :patient])]
+ :<- [:edit-patient/_page]
+ (fn [page _]
+   (let [req-status (get-in page [:process :request-fetch-patient])
+         patient (get-in page [:data :patient])]
      (and (#{:done :error} req-status)
           (some? patient)))))
