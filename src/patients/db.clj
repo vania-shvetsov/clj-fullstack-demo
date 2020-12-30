@@ -86,6 +86,7 @@
                             {:identifiers ->kebab-case-string})
            total (jdbc/query c (->sql (hh/select :%count.id)
                                       (hh/from :patients)))]
+       #_(Thread/sleep 3000)
        {:data (doall data)
         :total (-> total first :count)}))))
 
@@ -96,6 +97,7 @@
                                  (hh/from :patients)
                                  (hh/where [:= :id patient-id]))
                           {:identifiers ->kebab-case-string})]
+     #_(Thread/sleep 3000)
      (first data))))
 
 (defn create-patient! [patient]
@@ -113,6 +115,7 @@
                                     (hh/sset patient)
                                     (hh/where [:= :id id]))
                              {:return-keys ["id"]})]
+     #_(Thread/sleep 3000)
      (:id data))))
 
 (defn delete-patient! [id]
