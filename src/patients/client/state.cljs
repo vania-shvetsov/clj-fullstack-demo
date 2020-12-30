@@ -24,6 +24,13 @@
 (defn calc-page [items-count per-page]
   (.ceil js/Math (/ items-count per-page)))
 
+(defn persist-server-validation-result [db response path]
+  (if (= (:error response) "invalid_data")
+    (reduce (fn [db' [k msg]] (fork/set-error db' path k msg))
+            db
+            (:data response))
+    (fork/set-server-message db path "Неизвестная ошибка формы")))
+
 (def items-per-page 4)
 
 (defn initial-db []
@@ -38,7 +45,8 @@
                                 :request-delete-patient :init}}
 
            :edit-patient {:data {:patient nil}
-                          :process {:request-fetch-patient :init}}}})
+                          :process {:request-fetch-patient :init
+                                    :request-edit-patient :init}}}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Common fx
@@ -281,6 +289,7 @@
  :edit-patient/submit
  (fn [{db :db} [_ {:keys [values path]}]]
    {:db (-> db
+            (assoc-in [:pages :edit-patient :process :request-edit-patient] :work)
             (fork/set-submitting path true))
     :http-xhrio (in-json {:method :put
                           :params (dissoc values :id :created-at)
@@ -290,25 +299,19 @@
 
 (rf/reg-event-fx
  :edit-patient/_save-patient-ok
- (fn [{db :db} [_ path response]]
-   {:db (fork/set-submitting db path false)
+ (fn [{db :db} [_ path]]
+   {:db (-> db
+            (assoc-in [:pages :edit-patient :process :request-edit-patient] :done)
+            (fork/set-submitting path false))
     :dispatch [:navigation/to "/"]}))
 
 (rf/reg-event-db
  :edit-patient/_save-patient-err
  (fn [db [_ path {:keys [response]}]]
-   (let [error (get response :error)
-
-         new-db
-         (if (= error "invalid_data")
-           (reduce (fn [db' [k msg]]
-                     (fork/set-error db' path k msg))
-                   db
-                   (get response :data))
-           (fork/set-server-message db path "Unknown error"))
-
-         new-db (fork/set-submitting new-db path false)]
-     new-db)))
+   (-> db
+       (assoc-in [:pages :edit-patient :process :request-edit-patient] :error)
+       (persist-server-validation-result response path)
+       (fork/set-submitting path false))))
 
 (rf/reg-event-fx
  :edit-patient/load-patient
@@ -354,5 +357,5 @@
  (fn [db _]
    (let [req-status (get-in db [:pages :edit-patient :process :request-fetch-patient])
          patient (get-in db [:pages :edit-patient :data :patient])]
-     (and (= req-status :done)
+     (and (#{:done :error} req-status)
           (some? patient)))))

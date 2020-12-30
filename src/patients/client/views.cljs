@@ -245,7 +245,10 @@
      [:div.level-item
       [:button.button {:type "button"
                        :on-click #(rf/dispatch [:navigation/to "/"])}
-       "Отмена"]]]]])
+       "Отмена"]]
+     (when submitting?
+       [:div.level-item
+        [:span.icon [:i.fas.fa-spinner.fa-pulse]]])]]])
 
 (defn page-new-patient []
   [:div

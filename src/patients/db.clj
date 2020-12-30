@@ -10,6 +10,8 @@
             [patients.config :refer [config]])
   (:import (com.mchange.v2.c3p0 ComboPooledDataSource)))
 
+(java.util.TimeZone/setDefault(java.util.TimeZone/getTimeZone "GMT"))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; State
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

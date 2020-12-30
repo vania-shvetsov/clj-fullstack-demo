@@ -9,6 +9,7 @@
             [ring.middleware.stacktrace :as stacktrace]
             [ring.middleware.gzip :as gzip]
             [ring.logger :as logger]
+            [clj-time.core :as t]
             [clj-time.format :as tf]
             [cheshire.generate :refer [add-encoder]]
             [compojure.core :refer [GET POST PUT DELETE defroutes] :as compojure]
@@ -22,13 +23,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def date-format (tf/formatter "yyyy-MM-dd"))
+(def date-time-format (tf/formatter "yyyy-MM-dd'T'HH:mm:ss"))
 
-(defn api-date-format [d]
-  (tf/unparse date-format d))
+(defn zero-time? [d]
+  (= 0 (t/hour d) (t/minute d) (t/second d)))
 
 (add-encoder DateTime
-             (fn [c jsonGenerator]
-               (.writeString jsonGenerator (api-date-format c))))
+             (fn [d jsonGenerator]
+               ;; HACK: very bad
+               (let [choosen-format (if (zero-time? d)
+                                      date-format
+                                      date-time-format)]
+                 (.writeString jsonGenerator (tf/unparse choosen-format d)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Specs
