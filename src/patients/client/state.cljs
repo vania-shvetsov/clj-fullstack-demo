@@ -43,8 +43,7 @@
                         :request-delete-patient :init}}
 
    :edit-patient {:data {:patient nil}
-                  :process {:request-fetch-patient :init
-                            :request-edit-patient :init}}})
+                  :process {:request-fetch-patient :init}}})
 
 (def initial-db
   {:route nil
@@ -307,9 +306,7 @@
 (rf/reg-event-fx
  :edit-patient/submit
  (fn [{db :db} [_ {:keys [values path]}]]
-   {:db (-> db
-            (assoc-in [:pages :edit-patient :process :request-edit-patient] :work)
-            (fork/set-submitting path true))
+   {:db (fork/set-submitting db path true)
     :http-xhrio (in-json {:method :put
                           :params (dissoc values :id :created-at)
                           :uri (str "/api/patients/" (:id values))
@@ -319,16 +316,13 @@
 (rf/reg-event-fx
  :edit-patient/_save-patient-ok
  (fn [{db :db} [_ path]]
-   {:db (-> db
-            (assoc-in [:pages :edit-patient :process :request-edit-patient] :done)
-            (fork/set-submitting path false))
+   {:db (fork/set-submitting db path false)
     :dispatch [:navigation/to "/"]}))
 
 (rf/reg-event-db
  :edit-patient/_save-patient-err
  (fn [db [_ path {:keys [response]}]]
    (-> db
-       (assoc-in [:pages :edit-patient :process :request-edit-patient] :error)
        (persist-server-validation-result response path)
        (fork/set-submitting path false))))
 
