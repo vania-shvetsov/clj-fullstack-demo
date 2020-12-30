@@ -13,7 +13,8 @@
 (defn in-json [xhrio]
   (merge xhrio
          {:format default-request-format
-          :response-format default-response-format}))
+          :response-format default-response-format
+          :headers {"Content-Type" "application/json"}}))
 
 (defn ->fullname [{:keys [first-name middle-name last-name]}]
   (str (string/capitalize first-name) " "
@@ -37,7 +38,7 @@
                                 :request-delete-patient :init}}
 
            :edit-patient {:data {:patient nil}
-                          :process {}}}})
+                          :process {:request-fetch-patient :init}}}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Common fx
@@ -50,6 +51,11 @@
      (if ok?
        (when on-ok (rf/dispatch on-ok))
        (when on-cancel (rf/dispatch on-cancel))))))
+
+(rf/reg-event-db
+ :form/reset-field-error
+ (fn [db [_ path field-name]]
+   (update-in db (conj path :server ) dissoc field-name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Navigation
@@ -265,18 +271,88 @@
           (= req-status :work)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Page "Edit patient"
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Events
+;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (rf/reg-event-fx
- :submit-new-patient
- (fn [{db :db} [_ {:keys [values dirty path]}]]
-   (js/console.log values path)
-   {:db (fork/set-submitting db path true)}))
+ :edit-patient/submit
+ (fn [{db :db} [_ {:keys [values path]}]]
+   {:db (-> db
+            (fork/set-submitting path true))
+    :http-xhrio (in-json {:method :put
+                          :params (dissoc values :id :created-at)
+                          :uri (str "/api/patients/" (:id values))
+                          :on-success [:edit-patient/_save-patient-ok path]
+                          :on-failure [:edit-patient/_save-patient-err path]})}))
+
+(rf/reg-event-fx
+ :edit-patient/_save-patient-ok
+ (fn [{db :db} [_ path response]]
+   {:db (fork/set-submitting db path false)
+    :dispatch [:navigation/to "/"]}))
+
+(rf/reg-event-db
+ :edit-patient/_save-patient-err
+ (fn [db [_ path {:keys [response]}]]
+   (let [error (get response :error)
+
+         new-db
+         (if (= error "invalid_data")
+           (reduce (fn [db' [k msg]]
+                     (fork/set-error db' path k msg))
+                   db
+                   (get response :data))
+           (fork/set-server-message db path "Unknown error"))
+
+         new-db (fork/set-submitting new-db path false)]
+     new-db)))
+
+(rf/reg-event-fx
+ :edit-patient/load-patient
+ [(rf/path :pages :edit-patient)]
+ (fn [{:keys [db]} [_ id]]
+   {:db (assoc-in db [:process :request-fetch-patient] :work)
+    :http-xhrio (in-json {:method :get
+                          :uri (str "/api/patients/" id)
+                          :on-success [:edit-patient/_fetch-patient-ok]
+                          :on-failure [:edit-patient/_fetch-patient-err]})}))
+
+(rf/reg-event-db
+ :edit-patient/_fetch-patient-ok
+ [(rf/path :pages :edit-patient)]
+ (fn [db [_ response]]
+   (let [{:keys [data]} response]
+     (-> db
+         (assoc-in [:process :request-fetch-patient] :done)
+         (assoc-in [:data :patient] data)))))
+
+(rf/reg-event-db
+ :edit-patient/_fetch-patient-err
+ [(rf/path :pages :edit-patient)]
+ (fn [db]
+   (assoc-in db [:process :request-fetch-patient] :error)))
+
+;; Subs
+;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (rf/reg-sub
- :patient-by-id
- (fn [db [_ id]]
-   (println "P:"(some #(= id (:id %))
-                      (:patients db))
-            (:patients db))
-   (some #(= id (:id %))
-         (:patients db))))
+ :edit-patient/patient
+ (fn [db _]
+   (get-in db [:pages :edit-patient :data :patient])))
+
+(rf/reg-sub
+ :edit-patient/patient-loading?
+ (fn [db _]
+   (let [req-status (get-in db [:pages :edit-patient :process :request-fetch-patient])]
+     (#{:work :init} req-status))))
+
+(rf/reg-sub
+ :edit-patient/patient-exists?
+ (fn [db _]
+   (let [req-status (get-in db [:pages :edit-patient :process :request-fetch-patient])
+         patient (get-in db [:pages :edit-patient :data :patient])]
+     (and (= req-status :done)
+          (some? patient)))))

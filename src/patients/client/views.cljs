@@ -2,7 +2,8 @@
   (:require [reagent.core :as r]
             [re-frame.core :as rf]
             [fork.re-frame :as fork]
-            [patients.client.state :as s]))
+            [patients.client.state :as s]
+            [patients.utils :as utils]))
 
 (def gender-string
   {"male" "Мужской"
@@ -110,7 +111,7 @@
 (defn page-patients []
   (r/create-class
    {:component-did-mount
-    (fn [this]
+    (fn []
       (let [pagination (rf/subscribe [:patients/pagination])]
         (rf/dispatch [:patients/load-initial-patients])))
 
@@ -131,100 +132,108 @@
 ;; Create/Edit patient
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn patient-form [{:keys [values
+(defn field [{:keys [input label error field-name on-change path]}]
+  (let [handle-change
+        (fn [e]
+          (when error
+            (rf/dispatch [:form/reset-field-error path field-name]))
+          (on-change e))
+        [input-element input-props] input]
+    [:div.field
+     [:label.label label]
+     [:div.control
+      [input-element (merge input-props
+                            {:name (name field-name)
+                             :on-change handle-change
+                             :class (utils/class-names (:class input-props)
+                                                       {"is-danger" (boolean error)})})]
+      (when error
+        [:div.help.is-danger error])]]))
+
+(defn patient-form [{:keys [form-id
+                            values
+                            server-errors
                             handle-change
-                            handle-blur
                             submitting?
-                            handle-submit]}]
-  (js/console.log values)
-  [:form {:on-submit handle-submit}
+                            handle-submit
+                            path]}]
+  [:form {:on-submit handle-submit
+          :id form-id}
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [:div.field
-      [:label.label "Имя"]
-      [:div.field-body
-       [:div.field
-        [:p.control
-         [:input.input {:name "first-name"
-                        :value (values :first-name)
-                        :on-change handle-change}]]]]]]]
+     [field {:input [:input.input {:value (values :first-name)}]
+             :label "Имя"
+             :field-name :first-name
+             :error (:first-name server-errors)
+             :on-change handle-change
+             :path path}]]]
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [:div.field
-      [:label.label "Отчество"]
-      [:div.field-body
-       [:div.field
-        [:p.control
-         [:input.input {:name "middle-name"
-                        :value (values :middle-name)
-                        :on-change handle-change}]]]]]]]
+     [field {:input [:input.input {:value (values :middle-name)}]
+             :label "Отчество"
+             :field-name :middle-name
+             :error (:middle-name server-errors)
+             :on-change handle-change
+             :path path}]]]
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [:div.field
-      [:label.label "Фамилия"]
-      [:div.field-body
-       [:div.field
-        [:p.control
-         [:input.input {:name "last-name"
-                        :value (values :last-name)
-                        :on-change handle-change}]]]]]]]
+     [field {:input [:input.input {:value (values :last-name)}]
+             :label "Фамилия"
+             :field-name :last-name
+             :error (:last-name server-errors)
+             :on-change handle-change
+             :path path}]]]
 
    [:div.columns.is-gapless.mb-3
     [:div.column
      [:div.field
       [:label.label "Пол"]
-      [:div.field-body
-       [:div.field
-        [:p.control
-         [:label.radio
-          [:input {:name "gender"
-                   :type "radio"
-                   :value "male"
-                   :on-change handle-change}]
-          " Мужской"]
-         [:label.radio
-          [:input {:name "gender"
-                   :type "radio"
-                   :value "female"
-                   :on-change handle-change}]
-          " Женский"]]]]]]]
+      [:p.control
+       [:label.radio
+        [:input {:name "gender"
+                 :type "radio"
+                 :value "male"
+                 :checked (= (values :gender) "male")
+                 :on-change handle-change}]
+        " Мужской"]
+       [:label.radio
+        [:input {:name "gender"
+                 :type "radio"
+                 :value "female"
+                 :checked (= (values :gender) "female")
+                 :on-change handle-change}]
+        " Женский"]]]]]
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-fifth
-     [:div.field
-      [:label.label "Дата рождения"]
-      [:div.field-body
-       [:div.field
-        [:p.control
-         [:input.input {:name "birth-date"
-                        :type "date"
-                        :value (values :birth-date)
-                        :on-change handle-change}]]]]]]]
+     [field {:input [:input.input {:value (values :birth-date)
+                                   :type "date"}]
+             :label "Дата рождения"
+             :field-name :birth-date
+             :error (:birth-date server-errors)
+             :on-change handle-change
+             :path path}]]]
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-half
-     [:div.field
-      [:label.label "Адрес"]
-      [:div.field-body
-       [:div.field
-        [:p.control
-         [:textarea.textarea {:name "address"
-                              :value (values :address)
-                              :on-change handle-change}]]]]]]]
+     [field {:input [:textarea.textarea {:value (values :address)}]
+             :label "Адрес"
+             :field-name :address
+             :error (:address server-errors)
+             :on-change handle-change
+             :path path}]]]
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [:div.field
-      [:label.label "Номер полиса ОМС"]
-      [:div.field-body
-       [:div.field
-        [:p.control
-         [:input.input {:name "oms-number"
-                        :value (values :oms-number)
-                        :on-change handle-change}]]]]]]]
+     [field {:input [:input.input {:value (values :oms-number)}]
+             :label "Номер полиса ОМС"
+             :field-name :oms-number
+             :error (:oms-number server-errors)
+             :on-change handle-change
+             :path path}]]]
 
    [:div.level.py-5
     [:div.level-left
@@ -234,14 +243,15 @@
         :disabled submitting?}
        "Сохранить"]]
      [:div.level-item
-      [:button.button {:on-click #(rf/dispatch [:navigation/back])}
+      [:button.button {:type "button"
+                       :on-click #(rf/dispatch [:navigation/to "/"])}
        "Отмена"]]]]])
 
 (defn page-new-patient []
   [:div
    [:div.level
     [:div.is-size-5 "Регистрация нового пациента"]]
-   [fork/form {:path [:new-patient]
+   [fork/form {:path [:form :new-patient]
                :prevent-default? true
                :clean-on-unmount? true
                :keywordize-keys true
@@ -249,11 +259,37 @@
     patient-form]])
 
 (defn page-edit-patient [{:keys [id]}]
-  (r/with-let [patient (rf/subscribe [:patient-by-id id])]
-    (println @patient)
-    [:div
-     [:div.level
-      [:div.is-size-5 "Редактирование данных пациента"]]]))
+  (r/with-let [patient (rf/subscribe [:edit-patient/patient])
+               loading? (rf/subscribe [:edit-patient/patient-loading?])
+               exists? (rf/subscribe [:edit-patient/patient-exists?])]
+    (r/create-class
+     {:component-did-mount
+      (fn [] (rf/dispatch [:edit-patient/load-patient id]))
+
+      :reagent-render
+      (fn []
+        [:div
+         [:div.level
+          [:div.is-size-5 "Редактирование данных пациента"]]
+         (cond
+           @loading?
+           [:span.icon [:i.fas.fa-spinner.fa-pulse]]
+
+           @exists?
+           [fork/form {:path [:form :edit-patient]
+                       :initial-values @patient
+                       :prevent-default? true
+                       :clean-on-unmount? true
+                       :keywordize-keys true
+                       :validation (fn [] {})
+                       :on-submit #(rf/dispatch [:edit-patient/submit %])}
+            patient-form]
+
+           :else
+           [:div.is-size-5.has-text-weight-light.has-text-grey
+            "Пациент с идентификатором "
+            [:strong id]
+            " не найден в системе :("])])})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Not found
