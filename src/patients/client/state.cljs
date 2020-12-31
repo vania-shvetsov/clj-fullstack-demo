@@ -380,3 +380,30 @@
          patient (get-in page [:data :patient])]
      (and (#{:done :error} req-status)
           (some? patient)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Page "New patient"
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(rf/reg-event-fx
+ :new-patient/submit
+ (fn [{db :db} [_ {:keys [values path]}]]
+   {:db (fork/set-submitting db path true)
+    :http-xhrio (in-json {:method :post
+                          :params values
+                          :uri "/api/patients"
+                          :on-success [:new-patient/_create-patient-ok path]
+                          :on-failure [:new-patient/_create-patient-err path]})}))
+
+(rf/reg-event-fx
+ :new-patient/_create-patient-ok
+ (fn [{db :db} [_ path]]
+   {:db (fork/set-submitting db path false)
+    :dispatch [:navigation/to "/"]}))
+
+(rf/reg-event-db
+ :new-patient/_create-patient-err
+ (fn [db [_ path {:keys [response]}]]
+   (-> db
+       (persist-server-validation-result response path)
+       (fork/set-submitting path false))))

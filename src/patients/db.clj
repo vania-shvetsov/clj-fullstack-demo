@@ -80,7 +80,7 @@
                                               :middle-name
                                               :last-name)
                                    (hh/from :patients)
-                                   (hh/order-by :created-at)
+                                   (hh/order-by [:created-at :desc])
                                    (hh/offset offset)
                                    (hh/limit limit))
                             {:identifiers ->kebab-case-string})

@@ -166,7 +166,8 @@
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [field {:input [:input.input {:value (values :first-name)}]
+     [field {:input [:input.input {:value (values :first-name)
+                                   :auto-complete "off"}]
              :label "Имя"
              :field-name :first-name
              :error (:first-name server-errors)
@@ -175,7 +176,8 @@
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [field {:input [:input.input {:value (values :middle-name)}]
+     [field {:input [:input.input {:value (values :middle-name)
+                                   :auto-complete "off"}]
              :label "Отчество"
              :field-name :middle-name
              :error (:middle-name server-errors)
@@ -184,7 +186,8 @@
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [field {:input [:input.input {:value (values :last-name)}]
+     [field {:input [:input.input {:value (values :last-name)
+                                   :auto-complete "off"}]
              :label "Фамилия"
              :field-name :last-name
              :error (:last-name server-errors)
@@ -232,7 +235,8 @@
 
    [:div.columns.is-gapless.mb-2
     [:div.column.is-one-third
-     [field {:input [:input.input {:value (values :oms-number)}]
+     [field {:input [:input.input {:value (values :oms-number)
+                                   :auto-complete "off"}]
              :label "Номер полиса ОМС"
              :field-name :oms-number
              :error (:oms-number server-errors)
@@ -262,7 +266,14 @@
                :prevent-default? true
                :clean-on-unmount? true
                :keywordize-keys true
-               :on-submit #(rf/dispatch [:submit-new-patient %])}
+               :on-submit #(rf/dispatch [:new-patient/submit %])
+               :initial-values {:first-name ""
+                                :middle-name ""
+                                :last-name ""
+                                :gender "male"
+                                :birth-date ""
+                                :address ""
+                                :oms-number ""}}
     patient-form]])
 
 (defn page-edit-patient [{:keys [id]}]
@@ -292,7 +303,6 @@
                        :prevent-default? true
                        :clean-on-unmount? true
                        :keywordize-keys true
-                       :validation (fn [] {})
                        :on-submit #(rf/dispatch [:edit-patient/submit %])}
             patient-form]
 
