@@ -2,7 +2,7 @@
   (:require [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :as rf]
-            [secretary.core :refer [defroute]:as secretary]
+            [secretary.core :refer [defroute] :as secretary]
             [goog.events :as events]
             [patients.client.state :as state]
             [patients.client.views :as views])

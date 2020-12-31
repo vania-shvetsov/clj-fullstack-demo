@@ -191,7 +191,6 @@
                 :total (:total result)
                 :data (:data result)}))))
 
-
 (defn handler-get-patient-by-id [id]
   (let [result (db/get-patient-by-id id)]
     (if (db/bad-result? result)
@@ -228,22 +227,22 @@
 
 (defroutes app-api
   (GET "/patients"
-       [offset :<< as-int
-        limit :<< as-int]
-       (handler-get-patients offset limit))
+    [offset :<< as-int
+     limit :<< as-int]
+    (handler-get-patients offset limit))
   (GET "/patients/:id"
-       [id :<< as-int]
-       (handler-get-patient-by-id id))
+    [id :<< as-int]
+    (handler-get-patient-by-id id))
   (POST "/patients"
-        req
-        (handler-create-new-patient (-> req :body)))
+    req
+    (handler-create-new-patient (-> req :body)))
   (PUT "/patients/:id"
-       [id :<< as-int
-        :as req]
-       (handler-update-patient id (-> req :body)))
+    [id :<< as-int
+     :as req]
+    (handler-update-patient id (-> req :body)))
   (DELETE "/patients/:id"
-          [id :<< as-int]
-          (handler-delete-patient id))
+    [id :<< as-int]
+    (handler-delete-patient id))
   (fn [_]
     (client-error 404 {:error "not_found"})))
 

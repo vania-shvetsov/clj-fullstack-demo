@@ -10,7 +10,7 @@
             [patients.config :refer [config]])
   (:import (com.mchange.v2.c3p0 ComboPooledDataSource)))
 
-(java.util.TimeZone/setDefault(java.util.TimeZone/getTimeZone "GMT"))
+(java.util.TimeZone/setDefault (java.util.TimeZone/getTimeZone "GMT"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; State
@@ -46,12 +46,12 @@
 
 (comment
   ;; Check db connection
-  (jdbc/query db ["select 3*5 as result"])
-  )
+  (jdbc/query db ["select 3*5 as result"]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Queries helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 (defmacro ->sql [& subs]
   `(-> ~@subs
@@ -151,5 +151,4 @@
                       :address "Moscow"
                       :oms-number "1234567890123456"})
 
-  (delete-patient! 5)
-  )
+  (delete-patient! 5))

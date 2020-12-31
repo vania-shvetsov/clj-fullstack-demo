@@ -27,5 +27,4 @@
   (stop)
   (reset)
   (start-client)
-  (stop-client)
-  )
+  (stop-client))

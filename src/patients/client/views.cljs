@@ -11,9 +11,9 @@
 
 (defn link-to [{:keys [class href]} & children]
   (apply conj
-   [:a {:class class
-        :on-click #(rf/dispatch [:navigation/to href])}]
-   children))
+         [:a {:class class
+              :on-click #(rf/dispatch [:navigation/to href])}]
+         children))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Patient list
@@ -73,9 +73,9 @@
               [:span "Редактировать"]]]]
            [:div.level-right
             [:button.button.is-outlined.is-danger
-              {:on-click #(rf/dispatch [:patients/try-to-delete-patient id])}
-              [:span.icon [:i.fas.fa-trash-alt]]
-              [:span "Удалить"]]]]])])))
+             {:on-click #(rf/dispatch [:patients/try-to-delete-patient id])}
+             [:span.icon [:i.fas.fa-trash-alt]]
+             [:span "Удалить"]]]]])])))
 
 (defn patient-list []
   (r/with-let [patients (rf/subscribe [:patients/patients])
@@ -85,7 +85,6 @@
        [:span.icon [:i.fas.fa-spinner.fa-pulse]])
      (map (fn [x] ^{:key (:id x)} [patient-item {:patient x}])
           @patients)]))
-
 
 (defn pagination []
   (r/with-let [pagination (rf/subscribe [:patients/pagination])

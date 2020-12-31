@@ -65,7 +65,7 @@
 (rf/reg-event-db
  :form/reset-field-error
  (fn [db [_ path field-name]]
-   (update-in db (conj path :server ) dissoc field-name)))
+   (update-in db (conj path :server) dissoc field-name)))
 
 (rf/reg-event-db
  :reset-page
@@ -87,7 +87,6 @@
  (fn []
    (js/history.back)))
 
-
 (rf/reg-event-db
  :navigation/set-route
  (fn [db [_ name params]]
@@ -103,7 +102,6 @@
  :navigation/back
  (fn [_ [_]]
    {:navigation/_back []}))
-
 
 (rf/reg-sub
  :navigation/current-route

@@ -30,7 +30,8 @@
 
   :target-path "target/%s"
 
-  :plugins [[lein-cljsbuild "1.1.8"]]
+  :plugins [[lein-cljsbuild "1.1.8"]
+            [lein-cljfmt "0.7.0"]]
 
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
