@@ -266,13 +266,7 @@
                :clean-on-unmount? true
                :keywordize-keys true
                :on-submit #(rf/dispatch [:new-patient/submit %])
-               :initial-values {:first-name ""
-                                :middle-name ""
-                                :last-name ""
-                                :gender "male"
-                                :birth-date ""
-                                :address ""
-                                :oms-number ""}}
+               :initial-values {:gender "male"}}
     patient-form]])
 
 (defn page-edit-patient [{:keys [id]}]

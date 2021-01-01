@@ -41,6 +41,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def default-error-message "Не верное значение")
+(def not-existing-key-error-message "Обязательное поле")
 
 (def error-messages
   {::ne-string "Значение не может быть пустым"
@@ -52,21 +53,29 @@
    :patient/birth-date "Дата рождения должна быть в формате ГГГГ-ММ-ДД"
    :patient/oms-number "Номер полиса ОМС должен содержать 16 цифр"})
 
+(defn check-for-not-existing-key [problem]
+  (let [pred-str (pr-str (:pred problem))
+        found (re-find #"clojure\.core/contains\? % :(.+)\)\)" pred-str)
+        [_ field] found]
+    (keyword field)))
+
 (defn error-msg [problem dict]
   (let [last-spec (-> problem :via peek)
         msg (get dict last-spec)]
-    (if msg msg default-error-message)))
+    (or msg default-error-message)))
 
 (defn validation-errors [spec-result dict]
   (when spec-result
-    (into {}
-          (map (fn [problem]
-                 (let [field (-> problem :in peek name keyword)]
-                   [field (error-msg problem dict)]))
-               (:clojure.spec.alpha/problems spec-result)))))
+    (reduce (fn [errors problem]
+              (let [not-existing-key (check-for-not-existing-key problem)]
+                (if not-existing-key
+                  (assoc errors not-existing-key not-existing-key-error-message)
+                  (let [field (-> problem :in peek name keyword)]
+                    (assoc errors field (error-msg problem dict))))))
+            {}
+            (:clojure.spec.alpha/problems spec-result))))
 
 (defn validate-and-conform [spec dict value]
-  (prn value)
   (let [r (s/conform spec value)]
     (if (= :clojure.spec.alpha/invalid r)
       {:ok false
