@@ -140,7 +140,7 @@
       keyword-params/wrap-keyword-params
       params/wrap-params))
 
-(def non-index-uries ["/static" "/api" "/favicon.ico"])
+(def non-index-uries ["/api" "/favicon.ico" "/cljs-out" "/css" "/js"])
 
 (defn index-route? [uri]
   (not-any? #(string/starts-with? uri %) non-index-uries))

@@ -33,13 +33,22 @@
   :plugins [[lein-cljsbuild "1.1.8"]
             [lein-cljfmt "0.7.0"]]
 
+  :uberjar-name "patients-standalone.jar"
+
   :profiles {:uberjar {:aot :all
-                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
+                       :main patients.core}
 
              :dev {:source-paths ["src" "dev"]
                    :dependencies [[com.bhauman/figwheel-main "0.2.12"]
                                   [cider/piggieback "0.5.2"]
                                   [re-frisk "1.3.5"]]}}
+
+  :cljsbuild
+  {:builds [{:source-paths ["src"]
+             :compiler {:main "patients.client.core"
+                        :output-to "resources/public/cljs-out/dev-main.js"
+                        :optimizations :advanced
+                        :pretty-print false}}]}
 
   :aliases {"new-migration" ["trampoline" "run" "-m" "patients.migrations/new-migration"]
             "migrate" ["trampoline" "run" "-m" "patients.migrations/migrate"]

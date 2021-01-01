@@ -3,18 +3,18 @@
             [migratus.core :as migratus]
             [patients.config :as c]))
 
-(mount/start)
-
-(def config (assoc (:migratus c/config) :db (:db c/config)))
+(defn config []
+  (mount/start #'patients.config/config)
+  (assoc (:migratus c/config) :db (:db c/config)))
 
 (defn new-migration [name]
-  (migratus/create config name))
+  (migratus/create (config) name))
 
 (defn migrate []
-  (migratus/migrate config))
+  (migratus/migrate (config)))
 
 (defn rollback []
-  (migratus/rollback config))
+  (migratus/rollback (config)))
 
 (defn pending-list []
-  (println (migratus/pending-list config)))
+  (println (migratus/pending-list (config))))
