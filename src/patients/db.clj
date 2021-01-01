@@ -42,7 +42,9 @@
   :start
   {:datasource (datasource config)}
   :stop
-  (.close (:datasource db)))
+  (do
+    (log/info "Stop db")
+    (.close (:datasource db))))
 
 (comment
   ;; Check db connection

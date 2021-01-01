@@ -1,6 +1,7 @@
 (ns patients.server
   (:require [mount.core :refer [defstate]]
             [ring.adapter.jetty :as jetty]
+            [clojure.tools.logging :as log]
             [patients.config :refer [config]]
             [patients.app :refer [app]]))
 
@@ -9,4 +10,6 @@
   (jetty/run-jetty #'app {:port (-> config :jetty :port)
                           :join? (-> config :jetty :join?)})
   :stop
-  (.stop server))
+  (do
+    (log/info "Stop server")
+    (.stop server)))
