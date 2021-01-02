@@ -4,3 +4,4 @@ target
 resources/public/cljs-out
 .lein-*
 .DS_Store
+tmp

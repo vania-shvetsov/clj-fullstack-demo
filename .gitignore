@@ -10,3 +10,4 @@ pom.xml.asc
 /.prepl-port
 /resources/public/cljs-out
 .DS_Store
+/tmp
