@@ -1,3 +1,6 @@
+init:
+	lein deps
+
 repl:
 	lein repl
 
