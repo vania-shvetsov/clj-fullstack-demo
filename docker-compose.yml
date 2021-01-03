@@ -5,6 +5,7 @@ services:
     image: postgres
     volumes:
       - ./tmp/db:/var/lib/postgresql/data
+      - ./docker_bin:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: 12345
     ports:

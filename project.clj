@@ -43,6 +43,9 @@
 
              :dev {:source-paths ["src" "dev"]}}
 
+  :test-selectors {:integration :integration
+                   :default (complement :integration)}
+
   :cljsbuild
   {:builds [{:source-paths ["src"]
              :compiler {:main "patients.client.core"

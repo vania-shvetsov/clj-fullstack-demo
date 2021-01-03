@@ -2,6 +2,7 @@
   (:require [clojure.string :as string]
             [clojure.spec.alpha :as s]
             [ring.middleware.resource :as resource]
+            [ring.util.response :as response]
             [ring.middleware.content-type :as content-type]
             [ring.middleware.params :as params]
             [ring.middleware.keyword-params :as keyword-params]
@@ -152,13 +153,13 @@
       (handler request))))
 
 (defn wrap-exception [handler err-prod-response]
-  (if (= (:env config) :dev)
-    (stacktrace/wrap-stacktrace handler {:color? true})
+  (if (= (:env config) :prod)
     (fn [request]
       (try
         (handler request)
         (catch Throwable e
-          err-prod-response)))))
+          err-prod-response)))
+    (stacktrace/wrap-stacktrace handler {:color? true})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Response helpers
@@ -239,11 +240,9 @@
     [offset :<< as-int
      limit :<< as-int]
     (handler-get-patients offset limit))
-  (GET "/patients/:id"
-    [id :<< as-int]
+  (GET "/patients/:id" [id :<< as-int]
     (handler-get-patient-by-id id))
-  (POST "/patients"
-    req
+  (POST "/patients" req
     (handler-create-new-patient (-> req :body)))
   (PUT "/patients/:id"
     [id :<< as-int
@@ -252,6 +251,9 @@
   (DELETE "/patients/:id"
     [id :<< as-int]
     (handler-delete-patient id))
+  (GET "/health-check" []
+    {:status 200
+     :headers {"Content-Type" "application/json; charset=utf-8"}})
   (fn [_]
     (client-error 404 {:error "not_found"})))
 
