@@ -24,7 +24,10 @@
                  [re-frame "1.1.2"]
                  [day8.re-frame/http-fx "0.2.2"]
                  [clj-commons/secretary "1.2.4"]
-                 [fork "2.2.5"]]
+                 [fork "2.2.5"]
+                 [com.bhauman/figwheel-main "0.2.12"]
+                 [cider/piggieback "0.5.2"]
+                 [re-frisk "1.3.5"]]
 
   :main ^:skip-aot patients.core
 
@@ -38,10 +41,7 @@
   :profiles {:uberjar {:aot :all
                        :main patients.core}
 
-             :dev {:source-paths ["src" "dev"]
-                   :dependencies [[com.bhauman/figwheel-main "0.2.12"]
-                                  [cider/piggieback "0.5.2"]
-                                  [re-frisk "1.3.5"]]}}
+             :dev {:source-paths ["src" "dev"]}}
 
   :cljsbuild
   {:builds [{:source-paths ["src"]

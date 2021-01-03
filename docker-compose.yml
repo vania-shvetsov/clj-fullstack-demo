@@ -1,34 +1,11 @@
 version: "3.9"
 
-x-common-vars: &common-vars
-  DB_HOST: db
-  DB_NAME: postgres
-  DB_USER: postgres
-  DB_PORT: 5432
-  DB_PASSWORD: $DB_PASSWORD
-
 services:
   db:
     image: postgres
     volumes:
       - ./tmp/db:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: $DB_PASSWORD
+      POSTGRES_PASSWORD: 12345
     ports:
       - 5432:5432
-
-  web:
-    build: .
-    command: bash -c "java -jar /app/target/uberjar/patients-standalone.jar"
-    environment: *common-vars
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-
-  migration:
-    build: .
-    command: bash -c "/app/wait-for-it/wait-for-it.sh db:5432 -- lein migrate"
-    environment: *common-vars
-    depends_on:
-      - db

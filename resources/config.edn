@@ -8,14 +8,14 @@
                    :dev false}}
 
  :db-port #or [#env DB_PORT 5432]
- :db-host #or [#env DB_HOST "localhost"]
- :db-name #or [#env DB_NAME "patients_db"]
+ :db-host #or [#env DB_HOST "db"]
+ :db-name #or [#env DB_NAME "postgres"]
 
  :db {:classname "org.postgresql.Driver"
       :subprotocol "postgresql"
       :dbtype "postgresql"
       :subname #join ["//" #ref [:db-host] ":" #ref [:db-port] "/" #ref [:db-name]]
-      :user #or [#env DB_USER "user1"]
+      :user #or [#env DB_USER "postgres"]
       :password #or [#env DB_PASSWORD "12345"]}
 
  :db-pool {:min-pool-size 3
