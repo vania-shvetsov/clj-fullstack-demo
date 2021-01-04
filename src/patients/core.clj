@@ -6,7 +6,7 @@
             [patients.db])
   (:gen-class))
 
-(defn shutdown-hook [cleanup-fn]
+(defn- shutdown-hook [cleanup-fn]
   (.addShutdownHook (Runtime/getRuntime)
                     (Thread. ^Runnable cleanup-fn)))
 

@@ -21,7 +21,7 @@
        (string/capitalize middle-name) " "
        (string/capitalize last-name)))
 
-(defn calc-page [items-count per-page]
+(defn calc-page-number [items-count per-page]
   (.ceil js/Math (/ items-count per-page)))
 
 (defn persist-server-validation-result [db response path]
@@ -226,7 +226,7 @@
          offset' (if move-to-prev-page?
                    (max 0 (- offset items-per-page))
                    offset)
-         page (calc-page offset' items-per-page)]
+         page (calc-page-number offset' items-per-page)]
      {:db (-> db
               (update :data assoc
                       :total total'
@@ -261,14 +261,14 @@
  :<- [:patients/_page]
  (fn [page]
    (let [{:keys [offset total]} (:data page)]
-     {:current (calc-page offset items-per-page)
-      :total (calc-page total items-per-page)})))
+     {:current (calc-page-number offset items-per-page)
+      :total (calc-page-number total items-per-page)})))
 
 (rf/reg-sub
  :patients/item-open?
  :<- [:patients/_page]
  (fn [page [_ id]]
-   (get-in page [:ui :items id :open?])))
+   (boolean (get-in page [:ui :items id :open?]))))
 
 (rf/reg-sub
  :patients/item-loading?
@@ -282,8 +282,8 @@
  (fn [page _]
    (let [patients (get-in page [:data :patients])
          req-status (get-in page [:process :request-fetch-patients])]
-     (and (not (empty? patients))
-          (= req-status :work)))))
+     (boolean (and (not (empty? patients))
+                   (= req-status :work))))))
 
 (rf/reg-sub
  :patients/initial-patients-loading?
@@ -291,8 +291,8 @@
  (fn [page _]
    (let [patients (get-in page [:data :patients])
          req-status (get-in page [:process :request-fetch-patients])]
-     (and (empty? patients)
-          (= req-status :work)))))
+     (boolean (and (empty? patients)
+                   (= req-status :work))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Page "Edit patient"
@@ -368,7 +368,7 @@
  :<- [:edit-patient/_page]
  (fn [page _]
    (let [req-status (get-in page [:process :request-fetch-patient])]
-     (#{:work :init} req-status))))
+     (boolean (#{:work :init} req-status)))))
 
 (rf/reg-sub
  :edit-patient/patient-exists?
@@ -376,8 +376,8 @@
  (fn [page _]
    (let [req-status (get-in page [:process :request-fetch-patient])
          patient (get-in page [:data :patient])]
-     (and (#{:done :error} req-status)
-          (some? patient)))))
+     (boolean (and (#{:done :error} req-status)
+                   (some? patient))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Page "New patient"

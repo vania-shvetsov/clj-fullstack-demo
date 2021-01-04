@@ -6,6 +6,12 @@
             [patients.server]
             [patients.db]))
 
+(defn start-server []
+  (mount/start))
+
+(defn stop-server []
+  (mount/stop))
+
 (defn start-client []
   (fig/start "dev"))
 
@@ -13,18 +19,23 @@
   (fig/stop "dev"))
 
 (defn start []
-  (mount/start))
+  (start-client)
+  (start-server))
 
 (defn stop []
-  (mount/stop))
+  (stop-client)
+  (stop-server))
 
+;; Doesn't work because of figwheel repl
 (defn reset []
   (stop)
   (refresh :after 'user/start))
 
 (comment
+  (start-server)
+
   (start)
+
   (stop)
-  (reset)
-  (start-client)
-  (stop-client))
+
+  (reset))

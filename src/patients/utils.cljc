@@ -16,15 +16,16 @@
           map))
 
 (defn class-names [& args]
-  (clojure.string/join " "
-                       (mapv name
-                             (reduce (fn [arr arg]
-                                       (cond
-                                         (or (string? arg)
-                                             (symbol? arg)
-                                             (keyword? arg)) (conj arr arg)
-                                         (vector? arg) (vec (concat arr arg))
-                                         (map? arg) (vec (concat arr (class-names-map arg)))
-                                         :else arr))
-                                     []
-                                     args))))
+  (clojure.string/join
+   " "
+   (mapv name
+         (reduce (fn [arr arg]
+                   (cond
+                     (or (string? arg)
+                         (symbol? arg)
+                         (keyword? arg)) (conj arr arg)
+                     (vector? arg) (vec (concat arr arg))
+                     (map? arg) (vec (concat arr (class-names-map arg)))
+                     :else arr))
+                 []
+                 args))))

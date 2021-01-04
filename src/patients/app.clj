@@ -26,7 +26,7 @@
 (def date-format (tf/formatter "yyyy-MM-dd"))
 (def date-time-format (tf/formatter "yyyy-MM-dd'T'HH:mm:ss"))
 
-(defn zero-time? [d]
+(defn- zero-time? [d]
   (= 0 (t/hour d) (t/minute d) (t/second d)))
 
 (add-encoder DateTime
@@ -60,12 +60,12 @@
         [_ field] found]
     (keyword field)))
 
-(defn error-msg [problem dict]
+(defn- error-msg [problem dict]
   (let [last-spec (-> problem :via peek)
         msg (get dict last-spec)]
     (or msg default-error-message)))
 
-(defn validation-errors [spec-result dict]
+(defn- validation-errors [spec-result dict]
   (when spec-result
     (reduce (fn [errors problem]
               (let [not-existing-key (check-for-not-existing-key problem)]
@@ -76,7 +76,7 @@
             {}
             (:clojure.spec.alpha/problems spec-result))))
 
-(defn validate-and-conform [spec dict value]
+(defn- validate-and-conform [spec dict value]
   (let [r (s/conform spec value)]
     (if (= :clojure.spec.alpha/invalid r)
       {:ok false
@@ -85,11 +85,8 @@
        :data r})))
 
 (s/def ::string string?)
-
 (s/def ::->ne-string (s/conformer string/trim))
-
-(s/def ::ne-string
-  (s/and string? ::->ne-string not-empty))
+(s/def ::ne-string (s/and string? ::->ne-string not-empty))
 
 (s/def ::->date
   (s/and
@@ -136,23 +133,23 @@
 ;; Middlewares
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn wrap-params [handler]
+(defn- wrap-params [handler]
   (-> handler
       keyword-params/wrap-keyword-params
       params/wrap-params))
 
 (def non-index-uries ["/api" "/favicon.ico" "/cljs-out" "/css" "/js"])
 
-(defn index-route? [uri]
+(defn- index-route? [uri]
   (not-any? #(string/starts-with? uri %) non-index-uries))
 
-(defn wrap-default-index [handler]
+(defn- wrap-default-index [handler]
   (fn [request]
     (if (index-route? (:uri request))
       (handler (assoc request :uri "/index.html"))
       (handler request))))
 
-(defn wrap-exception [handler err-prod-response]
+(defn- wrap-exception [handler err-prod-response]
   (if (= (:env config) :prod)
     (fn [request]
       (try
@@ -165,25 +162,25 @@
 ;; Response helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn success [body]
+(defn- success [body]
   {:status 200
    :body body})
 
-(defn client-error
+(defn- client-error
   ([descriptor]
    (client-error 400 descriptor))
   ([status descriptor]
    {:status status
     :body (merge {:error "client_error"} descriptor)}))
 
-(defn client-validation-error [errors]
+(defn- client-validation-error [errors]
   (client-error {:error "invalid_data"
                  :data errors}))
 
-(defn bad-request-error []
+(defn- bad-request-error []
   (client-error {:error "bad_request"}))
 
-(defn server-error []
+(defn- server-error []
   {:status 500
    :headers {"Content-Type" "application/json"}
    :body {:error "server_error"}})
@@ -192,7 +189,7 @@
 ;; Handlers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn handler-get-patients [offset limit]
+(defn- handler-get-patients [offset limit]
   (let [result (db/get-patients offset limit)]
     (if (db/bad-result? result)
       (bad-request-error)
@@ -201,13 +198,13 @@
                 :total (:total result)
                 :data (:data result)}))))
 
-(defn handler-get-patient-by-id [id]
+(defn- handler-get-patient-by-id [id]
   (let [result (db/get-patient-by-id id)]
     (if (db/bad-result? result)
       (bad-request-error)
       (success {:data result}))))
 
-(defn handler-create-new-patient [patient]
+(defn- handler-create-new-patient [patient]
   (let [vr (validate-and-conform ::patient error-messages patient)]
     (if (:ok vr)
       (let [result (db/create-patient! (:data vr))]
@@ -216,7 +213,7 @@
           (success {:data {:id result}})))
       (client-validation-error (:errors vr)))))
 
-(defn handler-update-patient [id data]
+(defn- handler-update-patient [id data]
   (let [vr (validate-and-conform ::patient error-messages data)]
     (if (:ok vr)
       (let [result (db/update-patient! id (:data vr))]
@@ -225,7 +222,7 @@
           (success {:data {:id result}})))
       (client-validation-error (:errors vr)))))
 
-(defn handler-delete-patient [id]
+(defn- handler-delete-patient [id]
   (let [result (db/delete-patient! id)]
     (if (db/bad-result? result)
       (bad-request-error)

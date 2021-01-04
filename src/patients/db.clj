@@ -16,12 +16,12 @@
 ;; State
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn jdbc-url [c]
+(defn- jdbc-url [c]
   (format "jdbc:%s:%s"
           (:subprotocol c)
           (:subname c)))
 
-(defn datasource [c]
+(defn- datasource [c]
   (let [classname (-> c :db :classname)
         url (jdbc-url (:db c))
         user (-> c :db :user)
@@ -46,14 +46,9 @@
     (log/info "Stop db")
     (.close (:datasource db))))
 
-(comment
-  ;; Check db connection
-  (jdbc/query db ["select 3*5 as result"]))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Queries helpers
+;; Query helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 (defmacro ->sql [& subs]
   `(-> ~@subs
@@ -133,6 +128,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (comment
+  (jdbc/query db ["select 3*5 as result"])
+
   (get-patient-by-id 3)
 
   (get-patients 0 5)

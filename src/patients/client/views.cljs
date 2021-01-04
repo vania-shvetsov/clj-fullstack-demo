@@ -16,7 +16,7 @@
          children))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Patient list
+;; Patient list page
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn details-row [{:keys [caption value]}]
@@ -132,7 +132,7 @@
        [:div.level [pagination]]])}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Create/Edit patient
+;; Create/edit patient pages
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn field [{:keys [input label error field-name on-change path]}]
@@ -303,10 +303,10 @@
            [:div.is-size-5.has-text-weight-light.has-text-grey
             "Пациент с идентификатором "
             [:strong id]
-            " не найден в системе :("])])})))
+            " не найден :("])])})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Not found
+;; Not found page
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn page-not-found []
@@ -316,11 +316,11 @@
 ;; App
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn app [router]
+(defn app [content]
   [:div.container.is-max-desktop
    [:nav.navbar.mb-5
     [:div.navbar-brand
      [link-to {:href "/"
                :class "navbar-item is-size-4 has-text-weight-medium"}
       "Мои пациенты"]]]
-   [router]])
+   [content]])

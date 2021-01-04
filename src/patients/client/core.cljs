@@ -9,6 +9,10 @@
   (:import [goog.history Html5History]
            [goog.history EventType]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Routing
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defroute "/" []
   (rf/dispatch [:navigation/set-route :patient-list]))
 
@@ -21,6 +25,16 @@
 (defroute "*" []
   (rf/dispatch [:navigation/set-route :not-found]))
 
+(defn run-browser-navigation! []
+  (doto (Html5History.)
+    (events/listen EventType/NAVIGATE
+                   (fn [event] (secretary/dispatch! (.-token event))))
+    (.setUseFragment false)
+    (.setPathPrefix "")
+    (.setEnabled true)))
+
+(run-browser-navigation!)
+
 (def route-table
   {:patient-list views/page-patients
    :new-patient views/page-new-patient
@@ -32,6 +46,10 @@
     [(route-table (:name route))
      (:params route)]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Render
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn render []
   (rdom/render [#'views/app router]
                (.querySelector js/document "#app")))
@@ -42,13 +60,3 @@
 
 (defn ^:after-load re-render []
   (render))
-
-(defn run-browser-navigation! []
-  (doto (Html5History.)
-    (events/listen EventType/NAVIGATE
-                   (fn [event] (secretary/dispatch! (.-token event))))
-    (.setUseFragment false)
-    (.setPathPrefix "")
-    (.setEnabled true)))
-
-(run-browser-navigation!)
