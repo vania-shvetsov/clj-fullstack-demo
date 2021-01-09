@@ -2,7 +2,6 @@
   (:require [reagent.core :as r]
             [re-frame.core :as rf]
             [fork.re-frame :as fork]
-            [patients.client.state :as s]
             [patients.utils :as utils]))
 
 (def gender-string
@@ -111,8 +110,7 @@
   (r/create-class
    {:component-did-mount
     (fn []
-      (let [pagination (rf/subscribe [:patients/pagination])]
-        (rf/dispatch [:patients/load-initial-patients])))
+      (rf/dispatch [:patients/load-initial-patients]))
 
     :component-will-unmount
     (fn []

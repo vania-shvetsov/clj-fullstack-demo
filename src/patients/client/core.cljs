@@ -1,10 +1,9 @@
 (ns ^:figwheel-hooks patients.client.core
-  (:require [reagent.core :as r]
-            [reagent.dom :as rdom]
+  (:require [reagent.dom :as rdom]
             [re-frame.core :as rf]
             [secretary.core :refer [defroute] :as secretary]
             [goog.events :as events]
-            [patients.client.state :as state]
+            [patients.client.state]
             [patients.client.views :as views])
   (:import [goog.history Html5History]
            [goog.history EventType]))
@@ -19,7 +18,7 @@
 (defroute "/new-patient" []
   (rf/dispatch [:navigation/set-route :new-patient]))
 
-(defroute edit-patient #"/edit-patient/(\d+)" [id]
+(defroute #"/edit-patient/(\d+)" [id]
   (rf/dispatch [:navigation/set-route :edit-patient {:id (int id)}]))
 
 (defroute "*" []

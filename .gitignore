@@ -11,3 +11,5 @@ pom.xml.asc
 /resources/public/cljs-out
 .DS_Store
 /tmp
+/.clj-kondo/.cache
+.rebel_readline_history

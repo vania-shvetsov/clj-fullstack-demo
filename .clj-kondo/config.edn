@@ -1,0 +1,3 @@
+{:lint-as {secretary.core/defroute clojure.core/defn
+           reagent.core/with-let clojure.core/let
+           mount.core/defstate clj-kondo.lint-as/def-catch-all}}

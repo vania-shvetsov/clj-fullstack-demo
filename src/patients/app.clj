@@ -2,7 +2,6 @@
   (:require [clojure.string :as string]
             [clojure.spec.alpha :as s]
             [ring.middleware.resource :as resource]
-            [ring.util.response :as response]
             [ring.middleware.content-type :as content-type]
             [ring.middleware.params :as params]
             [ring.middleware.keyword-params :as keyword-params]
@@ -95,7 +94,7 @@
     (fn [value]
       (try
         (tf/parse date-format value)
-        (catch Exception e
+        (catch Exception _
           ::s/invalid))))))
 
 (s/def :patient/name
@@ -154,7 +153,7 @@
     (fn [request]
       (try
         (handler request)
-        (catch Throwable e
+        (catch Throwable _
           err-prod-response)))
     (stacktrace/wrap-stacktrace handler {:color? true})))
 

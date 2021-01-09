@@ -203,7 +203,7 @@
 
 (rf/reg-event-fx
  :patients/try-to-delete-patient
- (fn [{db :db} [_ id]]
+ (fn [_ [_ id]]
    {:dialog/confirm {:message "Удалить данные о пациенте?"
                      :on-ok [:patients/_actual-delete-patient id]}}))
 
@@ -282,7 +282,7 @@
  (fn [page _]
    (let [patients (get-in page [:data :patients])
          req-status (get-in page [:process :request-fetch-patients])]
-     (boolean (and (not (empty? patients))
+     (boolean (and (seq patients)
                    (= req-status :work))))))
 
 (rf/reg-sub

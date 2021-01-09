@@ -26,13 +26,15 @@
   (stop-client)
   (stop-server))
 
-;; Doesn't work because of figwheel repl
+;; TODO: Doesn't work because of figwheel repl
 (defn reset []
   (stop)
   (refresh :after 'user/start))
 
 (comment
   (start-server)
+
+  (stop-server)
 
   (start)
 
