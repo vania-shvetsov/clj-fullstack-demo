@@ -171,11 +171,11 @@
             (assoc-in [:ui :items id :loading?] true))
     :http-xhrio (in-json {:method :get
                           :uri (str "/api/patients/" id)
-                          :on-success [:patients/_fetch-patient-by-id-ok]
-                          :on-failure [:patients/_fetch-patient-by-id-err id]})}))
+                          :on-success [:patients/_load-patient-details-ok]
+                          :on-failure [:patients/_load-patient-details-err id]})}))
 
 (rf/reg-event-db
- :patients/_fetch-patient-by-id-ok
+ :patients/_load-patient-details-ok
  [(rf/path :pages :patients)]
  (fn [db [_ response]]
    (let [{:keys [data]} response
@@ -194,7 +194,7 @@
        db))))
 
 (rf/reg-event-db
- :patients/_fetch-patient-by-id-err
+ :patients/_load-patient-details-err
  [(rf/path :pages :patients)]
  (fn [db [_ id]]
    (-> db
