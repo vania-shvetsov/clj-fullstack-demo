@@ -7,10 +7,8 @@
 
 (defstate server
   :start
-  (let [port (-> config :jetty :port)
-        join? (-> config :jetty :join?)]
-    (jetty/run-jetty #'app {:port port
-                            :join? join?}))
+  (jetty/run-jetty #'app {:port (-> config :jetty :port)
+                          :join? (-> config :jetty :join?)})
   :stop
   (do
     (log/info "Stop server")

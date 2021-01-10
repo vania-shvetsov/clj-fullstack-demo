@@ -4,10 +4,9 @@
            :test :test}
 
  :jetty {:port #or [#env PORT 3000]
-         :join?
-         #profile {:prod true
-                   :dev false
-                   :test false}}
+         :join? #profile {:prod true
+                          :dev false
+                          :test false}}
 
  :db-port #or [#env DB_PORT 5432]
  :db-host #or [#env DB_HOST "db"]

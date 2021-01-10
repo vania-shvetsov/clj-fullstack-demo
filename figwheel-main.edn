@@ -1,5 +1,4 @@
 {:target-dir "resources"
  :rebel-readline false
  :css-dirs ["resources/public/css"]
- :ring-handler patients.app/app
- }
+ :ring-handler patients.app/app}
