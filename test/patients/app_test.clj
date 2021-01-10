@@ -1,5 +1,5 @@
 (ns ^:integration patients.app-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is use-fixtures testing]]
             [clojure.java.jdbc :as jdbc]
             [mount.core :as mount]
             [ring.mock.request :refer [request json-body]]
@@ -7,6 +7,10 @@
             [patients.app :as app]
             [patients.db :as db]
             [patients.config :as config]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Fixtures
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn fix-mount [t]
   (mount/start #'patients.config/config #'patients.db/db)
@@ -20,6 +24,10 @@
 (use-fixtures :once fix-mount)
 (use-fixtures :each fix-clean-patients-table)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn parse-body [res]
   (update res :body parse-string true))
 
@@ -29,12 +37,14 @@
    :body body})
 
 (defn response-4xx-expected [body status]
-
   {:status status
    :headers {"Content-Type" "application/json; charset=utf-8"}
    :body body})
 
-(def new-patient-full-data
+(defn req-to-app [req]
+  (-> req app/app parse-body))
+
+(def patient-full-data
   {:first-name "петр"
    :middle-name "петрович"
    :last-name "петров"
@@ -44,9 +54,13 @@
    :oms-number "0123456789123456"})
 
 (def patient-short-data
-  (select-keys new-patient-full-data [:first-name
-                                      :middle-name
-                                      :last-name]))
+  (select-keys patient-full-data [:first-name
+                                  :middle-name
+                                  :last-name]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Tests
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest test-health-check
   (is (= (response-200-expected "")
@@ -57,98 +71,88 @@
                                  :limit 5
                                  :total 0
                                  :data []})
-         (-> (request :get "/api/patients?offset=0&limit=5")
-             app/app
-             parse-body))))
+         (-> (request :get "/api/patients" {:offset 0
+                                            :limit 5})
+             (req-to-app)))))
 
 (deftest test-get-patients-non-empty-ok
   (let [response (-> (request :post "/api/patients")
-                     (json-body new-patient-full-data)
-                     app/app
-                     parse-body)
+                     (json-body patient-full-data)
+                     req-to-app)
         id (get-in response [:body :data :id])]
     (is (= (response-200-expected {:offset 0
                                    :limit 5
                                    :total 1
                                    :data [(assoc patient-short-data :id id)]})
-           (-> (request :get "/api/patients?offset=0&limit=5")
-               app/app
-               parse-body)))))
+           (-> (request :get "/api/patients" {:offset 0
+                                              :limit 5})
+               req-to-app)))))
 
 (deftest test-get-patients-400
   (is (= (response-4xx-expected {:error "bad_request"} 400)
-         (-> (request :get "/api/patients?offset=0&limit=-1")
-             app/app
-             parse-body))))
+         (-> (request :get "/api/patients" {:offset 0
+                                            :limit -1})
+             req-to-app))))
 
 (deftest test-create-new-patient-ok
   (let [response (-> (request :post "/api/patients")
-                     (json-body new-patient-full-data)
-                     app/app
-                     parse-body)
+                     (json-body patient-full-data)
+                     req-to-app)
         id (get-in response [:body :data :id])]
     (is (= (type id) java.lang.Integer))))
 
 (deftest test-create-new-patient-validation-error
   (let [response (-> (request :post "/api/patients")
-                     (json-body (assoc new-patient-full-data :first-name ""))
-                     app/app
-                     parse-body)
+                     (json-body (assoc patient-full-data :first-name ""))
+                     req-to-app)
         first-name-error (get-in response [:body :data :first-name])]
     (is (= (type first-name-error) java.lang.String))))
 
 (deftest test-get-patient-by-id
   (testing "get existing patient"
     (let [response (-> (request :post "/api/patients")
-                       (json-body new-patient-full-data)
-                       app/app
-                       parse-body)
+                       (json-body patient-full-data)
+                       req-to-app)
           id (get-in response [:body :data :id])]
-      (is (= (response-200-expected {:data (assoc new-patient-full-data :id id)})
+      (is (= (response-200-expected {:data (assoc patient-full-data :id id)})
              (-> (request :get (str "/api/patients/" id))
-                 app/app
-                 parse-body
+                 req-to-app
                  (update-in [:body :data] dissoc :created-at))))))
 
   (testing "get non existing patient"
     (is (= (response-200-expected {:data nil})
            ;;
            (-> (request :get (str "/api/patients/" 0))
-               app/app
-               parse-body)))))
+               req-to-app)))))
 
 (deftest test-put-patient-ok
   (let [new-patient-response (-> (request :post "/api/patients")
-                                 (json-body new-patient-full-data)
-                                 app/app
-                                 parse-body)
+                                 (json-body patient-full-data)
+                                 req-to-app)
         id (get-in new-patient-response [:body :data :id])
-        updated-patient (assoc new-patient-full-data
+        updated-patient (assoc patient-full-data
                                :id id
                                :oms-number "0987654321654321")]
     (is (= (response-200-expected {:data {:id id}})
            (-> (request :put (str "/api/patients/" id))
                (json-body updated-patient)
-               app/app
-               parse-body)))))
+               req-to-app)))))
 
 (deftest test-delete-patient-ok
   (let [new-patient-response (-> (request :post "/api/patients")
-                                 (json-body new-patient-full-data)
-                                 app/app
-                                 parse-body)
+                                 (json-body patient-full-data)
+                                 req-to-app)
         id (get-in new-patient-response [:body :data :id])]
-    (is (= (response-200-expected {:data {:id id}})
-           (-> (request :delete (str "/api/patients/" id))
-               app/app
-               parse-body)))
-    (is (= (response-200-expected {:data nil})
-           (-> (request :get (str "/api/patients/" id))
-               app/app
-               parse-body)))))
+    (testing "return id of deleted patient"
+      (is (= (response-200-expected {:data {:id id}})
+             (-> (request :delete (str "/api/patients/" id))
+                 req-to-app))))
+    (testing "get nil for deleted patient"
+      (is (= (response-200-expected {:data nil})
+             (-> (request :get (str "/api/patients/" id))
+                 req-to-app))))))
 
 (deftest test-404
   (is (= (response-4xx-expected {:error "not_found"} 404)
          (-> (request :get "/api/unknown-endpoint")
-             app/app
-             parse-body))))
+             req-to-app))))

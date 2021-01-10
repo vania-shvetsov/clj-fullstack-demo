@@ -33,3 +33,6 @@ fmt:
 	lein cljfmt check
 
 lint: kondo fmt
+
+test-integration:
+	ENV=test lein test :integration
