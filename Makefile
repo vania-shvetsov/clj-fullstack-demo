@@ -25,3 +25,11 @@ new-migration:
 
 pending-migrations:
 	lein pending-migrations
+
+kondo:
+	clj-kondo --lint ./src
+
+fmt:
+	lein cljfmt check
+
+lint: kondo fmt
