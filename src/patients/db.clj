@@ -1,50 +1,12 @@
 (ns patients.db
-  (:require [mount.core :refer [defstate]]
-            [clojure.java.jdbc :as jdbc]
+  (:require [clojure.java.jdbc :as jdbc]
             [honeysql.core :as sql]
             [honeysql.helpers :as hh]
-            [clj-time.core :as t]
             [clj-time.jdbc]
             [clojure.tools.logging :as log]
-            [patients.utils :refer [->kebab-case-string]]
-            [patients.config :refer [config]])
-  (:import (com.mchange.v2.c3p0 ComboPooledDataSource)))
+            [patients.utils :refer [->kebab-case-string]]))
 
 (java.util.TimeZone/setDefault (java.util.TimeZone/getTimeZone "GMT"))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; State
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn- jdbc-url [c]
-  (format "jdbc:%s:%s"
-          (:subprotocol c)
-          (:subname c)))
-
-(defn- datasource [c]
-  (let [classname (-> c :db :classname)
-        url (jdbc-url (:db c))
-        user (-> c :db :user)
-        password (-> c :db :password)
-        max-pool-size (-> c :db-pool :max-pool-size)
-        min-pool-size (-> c :db-pool :min-pool-size)]
-    (doto (ComboPooledDataSource.)
-      (.setDriverClass classname)
-      (.setJdbcUrl url)
-      (.setUser user)
-      (.setPassword password)
-      (.setMaxIdleTimeExcessConnections (* 30 60))
-      (.setMaxIdleTime (* 3 60 60))
-      (.setMaxPoolSize max-pool-size)
-      (.setMinPoolSize min-pool-size))))
-
-(defstate db
-  :start
-  {:datasource (datasource config)}
-  :stop
-  (do
-    (log/info "Stop db")
-    (.close (:datasource db))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Query helpers
@@ -68,9 +30,9 @@
 ;; Queries
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-patients [offset limit]
+(defn get-patients [ctx offset limit]
   (safe-query
-   (jdbc/with-db-transaction [c db]
+   (jdbc/with-db-transaction [c ctx]
      (let [data (jdbc/query c
                             (->sql (hh/select :id
                                               :first-name
@@ -87,7 +49,7 @@
        {:data (doall data)
         :total (-> total first :count)}))))
 
-(defn get-patient-by-id [patient-id]
+(defn get-patient-by-id [db patient-id]
   (safe-query
    (let [data (jdbc/query db
                           (->sql (hh/select :*)
@@ -97,17 +59,17 @@
      #_(Thread/sleep 3000)
      (first data))))
 
-(defn create-patient! [patient]
+(defn create-patient! [ctx patient]
   (safe-query
-   (let [data (jdbc/execute! db
+   (let [data (jdbc/execute! ctx
                              (->sql (hh/insert-into :patients)
                                     (hh/values [patient]))
                              {:return-keys ["id"]})]
      (:id data))))
 
-(defn update-patient! [id patient]
+(defn update-patient! [ctx id patient]
   (safe-query
-   (let [data (jdbc/execute! db
+   (let [data (jdbc/execute! ctx
                              (->sql (hh/update :patients)
                                     (hh/sset patient)
                                     (hh/where [:= :id id]))
@@ -115,9 +77,9 @@
      #_(Thread/sleep 3000)
      (:id data))))
 
-(defn delete-patient! [id]
+(defn delete-patient! [ctx id]
   (safe-query
-   (let [data (jdbc/execute! db
+   (let [data (jdbc/execute! ctx
                              (->sql (hh/delete-from :patients)
                                     (hh/where [:= :id id]))
                              {:return-keys ["id"]})]
@@ -127,27 +89,27 @@
 ;; Examples
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(comment
-  (jdbc/query db ["select 3*5 as result"])
+;; (comment
+;;   (jdbc/query db ["select 3*5 as result"])
 
-  (get-patient-by-id 3)
+;;   (get-patient-by-id 3)
 
-  (get-patients 0 5)
+;;   (get-patients 0 5)
 
-  (create-patient! {:first-name "Василий"
-                    :middle-name "Васильевич"
-                    :last-name "Васильев"
-                    :gender "male"
-                    :birth-date (t/date-time 1999 5 23)
-                    :address "Moscow"
-                    :oms-number "1234567890123456"})
+;;   (create-patient! {:first-name "Василий"
+;;                     :middle-name "Васильевич"
+;;                     :last-name "Васильев"
+;;                     :gender "male"
+;;                     :birth-date (t/date-time 1999 5 23)
+;;                     :address "Moscow"
+;;                     :oms-number "1234567890123456"})
 
-  (update-patient! 4 {:first-name "Андрей"
-                      :middle-name "Андреевич"
-                      :last-name "Андреев"
-                      :gender "male"
-                      :birth-date (t/date-time 1980 1 15)
-                      :address "Moscow"
-                      :oms-number "1234567890123456"})
+;;   (update-patient! 4 {:first-name "Андрей"
+;;                       :middle-name "Андреевич"
+;;                       :last-name "Андреев"
+;;                       :gender "male"
+;;                       :birth-date (t/date-time 1980 1 15)
+;;                       :address "Moscow"
+;;                       :oms-number "1234567890123456"})
 
-  (delete-patient! 5))
+;;   (delete-patient! 5))

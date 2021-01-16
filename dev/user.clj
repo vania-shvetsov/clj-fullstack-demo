@@ -1,16 +1,21 @@
 (ns user
   (:require [clojure.tools.namespace.repl :refer [refresh]]
-            [mount.core :as mount]
             [figwheel.main.api :as fig]
-            [patients.config]
-            [patients.server]
-            [patients.db]))
+            [patients.config :refer [load-config]]
+            [patients.core :refer [start-service]]
+            [patients.migrations :as m]))
+
+(defonce stop-service (atom nil))
 
 (defn start-server []
-  (mount/start))
+  (when @stop-service
+    (@stop-service))
+  (reset! stop-service (start-service (load-config))))
 
 (defn stop-server []
-  (mount/stop))
+  (when @stop-service
+    (@stop-service)
+    (reset! stop-service nil)))
 
 (defn start-client []
   (fig/start "dev"))
@@ -33,11 +38,10 @@
 
 (comment
   (start-server)
-
   (stop-server)
-
+  (start-client)
+  (stop-client)
   (start)
-
   (stop)
-
-  (reset))
+  (reset)
+  (m/migrate))

@@ -35,4 +35,4 @@ fmt:
 lint: kondo fmt
 
 test-integration:
-	ENV=test lein test :integration
+	lein test :integration

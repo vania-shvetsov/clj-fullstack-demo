@@ -11,7 +11,6 @@
                  [bk/ring-gzip "0.3.0"]
                  [ring-logger "1.0.1"]
                  [compojure "1.6.2"]
-                 [mount "0.1.16"]
                  [aero "1.1.6"]
                  [migratus "1.3.3"]
                  [honeysql "1.0.444"]

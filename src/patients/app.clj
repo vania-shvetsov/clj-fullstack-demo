@@ -12,9 +12,8 @@
             [clj-time.core :as t]
             [clj-time.format :as tf]
             [cheshire.generate :refer [add-encoder]]
-            [compojure.core :refer [GET POST PUT DELETE defroutes] :as compojure]
+            [compojure.core :refer [GET POST PUT DELETE routes] :as compojure]
             [compojure.coercions :refer [as-int]]
-            [patients.config :refer [config]]
             [patients.db :as db])
   (:import (org.joda.time DateTime)))
 
@@ -149,7 +148,8 @@
       (handler request))))
 
 (defn- wrap-exception [handler err-prod-response]
-  (if (= (:env config) :prod)
+  (stacktrace/wrap-stacktrace handler {:color? true})
+  #_(if (= (:env config) :prod)
     (fn [request]
       (try
         (handler request)
@@ -188,8 +188,8 @@
 ;; Handlers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- handler-get-patients [offset limit]
-  (let [result (db/get-patients offset limit)]
+(defn- handler-get-patients [db-ctx offset limit]
+  (let [result (db/get-patients db-ctx offset limit)]
     (if (db/bad-result? result)
       (bad-request-error)
       (success {:offset offset
@@ -197,74 +197,78 @@
                 :total (:total result)
                 :data (:data result)}))))
 
-(defn- handler-get-patient-by-id [id]
-  (let [result (db/get-patient-by-id id)]
+(defn- handler-get-patient-by-id [db-ctx id]
+  (let [result (db/get-patient-by-id db-ctx id)]
     (if (db/bad-result? result)
       (bad-request-error)
       (success {:data result}))))
 
-(defn- handler-create-new-patient [patient]
+(defn- handler-create-new-patient [db-ctx patient]
   (let [vr (validate-and-conform ::patient error-messages patient)]
     (if (:ok vr)
-      (let [result (db/create-patient! (:data vr))]
+      (let [result (db/create-patient! db-ctx (:data vr))]
         (if (db/bad-result? result)
           (bad-request-error)
           (success {:data {:id result}})))
       (client-validation-error (:errors vr)))))
 
-(defn- handler-update-patient [id data]
+(defn- handler-update-patient [db-ctx id data]
   (let [vr (validate-and-conform ::patient error-messages data)]
     (if (:ok vr)
-      (let [result (db/update-patient! id (:data vr))]
+      (let [result (db/update-patient! db-ctx id (:data vr))]
         (if (db/bad-result? result)
           (bad-request-error)
           (success {:data {:id result}})))
       (client-validation-error (:errors vr)))))
 
-(defn- handler-delete-patient [id]
-  (let [result (db/delete-patient! id)]
+(defn- handler-delete-patient [db-ctx id]
+  (let [result (db/delete-patient! db-ctx id)]
     (if (db/bad-result? result)
       (bad-request-error)
       (success {:data {:id result}}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Routes
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defroutes app-api
-  (GET "/patients"
-    [offset :<< as-int
-     limit :<< as-int]
-    (handler-get-patients offset limit))
-  (GET "/patients/:id" [id :<< as-int]
-    (handler-get-patient-by-id id))
-  (POST "/patients" req
-    (handler-create-new-patient (-> req :body)))
-  (PUT "/patients/:id"
-    [id :<< as-int
-     :as req]
-    (handler-update-patient id (-> req :body)))
-  (DELETE "/patients/:id"
-    [id :<< as-int]
-    (handler-delete-patient id))
-  (GET "/health-check" []
-    {:status 200
-     :headers {"Content-Type" "application/json; charset=utf-8"}})
-  (fn [_]
-    (client-error 404 {:error "not_found"})))
-
-(defroutes app*
-  (-> (compojure/context "/api" [] app-api)
-      (wrap-exception (server-error))
-      (json/wrap-json-response)
-      (json/wrap-json-body {:keywords? true})))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; App
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def app
-  (-> #'app*
+(defn get-api-handler [db-ctx]
+  (routes
+   (GET "/patients"
+     [offset :<< as-int
+      limit :<< as-int]
+     (handler-get-patients db-ctx offset limit))
+
+   (GET "/patients/:id" [id :<< as-int]
+     (handler-get-patient-by-id db-ctx id))
+
+   (POST "/patients" req
+     (handler-create-new-patient db-ctx (-> req :body)))
+
+   (PUT "/patients/:id"
+     [id :<< as-int
+      :as req]
+     (handler-update-patient db-ctx id (-> req :body)))
+
+   (DELETE "/patients/:id"
+     [id :<< as-int]
+     (handler-delete-patient db-ctx id))
+
+   (GET "/health-check" []
+     {:status 200
+      :headers {"Content-Type" "application/json; charset=utf-8"}})
+
+   (fn [_]
+     (client-error 404 {:error "not_found"}))))
+
+(defn get-app-handler [db-ctx]
+  (routes
+   (-> (compojure/context "/api" [] (get-api-handler db-ctx))
+       (wrap-exception (server-error))
+       (json/wrap-json-response)
+       (json/wrap-json-body {:keywords? true}))))
+
+(defn get-app [db-ctx]
+  (-> (get-app-handler db-ctx)
       (resource/wrap-resource "public")
       content-type/wrap-content-type
       wrap-default-index

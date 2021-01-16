@@ -1,26 +1,19 @@
 {:env
  #profile {:prod :prod
-           :dev :dev
-           :test :test}
+           :dev :dev}
 
  :jetty {:port #or [#env PORT 3000]
          :join? #profile {:prod true
-                          :dev false
-                          :test false}}
-
- :db-port #or [#env DB_PORT 5432]
- :db-host #or [#env DB_HOST "db"]
- :db-name #profile {:prod #or [#env DB_NAME "postgres"]
-                    :dev #or [#env DB_NAME "postgres"]
-                    :test "postgres_test"}
+                          :dev false}}
 
  :db {:classname "org.postgresql.Driver"
       :subprotocol "postgresql"
       :dbtype "postgresql"
-      :subname #join ["//" #ref [:db-host] ":" #ref [:db-port] "/" #ref [:db-name]]
+      :host "db"
+      :port 5432
+      :dbname "postgres"
       :user #or [#env DB_USER "postgres"]
       :password #or [#env DB_PASSWORD "12345"]}
-
  :db-pool {:min-pool-size 3
            :max-pool-size 10}
 
